@@ -1,0 +1,71 @@
+name: olympia_app
+description: "Application Commerciale B2B - Olympia"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI
+  cupertino_icons: ^1.0.8
+  flutter_screenutil: ^5.9.3
+  flutter_platform_widgets: ^7.0.1
+  fl_chart: ^0.70.2
+  google_fonts: ^6.2.1
+
+  # State Management & DI
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  get_it: ^8.0.3
+  injectable: ^2.5.0
+
+  # Functional Programming & Utils
+  dartz: ^0.10.1
+  equatable: ^2.0.7
+  json_annotation: ^4.9.0
+  intl: ^0.20.2
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # Network
+  dio: ^5.7.0
+  internet_connection_checker: ^3.0.1
+
+  # Storage
+  flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.3.5
+
+  # Media & Files
+  image_picker: ^1.1.2
+  file_picker: ^8.1.7
+  cached_network_image: ^3.4.1
+
+  # Notifications
+  flutter_local_notifications: ^18.0.1
+
+  # Loading & Feedback
+  shimmer: ^3.0.0
+  fluttertoast: ^8.2.10
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  riverpod_generator: ^2.6.3
+  build_runner: ^2.4.14
+  json_serializable: ^6.9.4
+  injectable_generator: ^2.7.0
+  device_preview: ^1.2.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/fonts/
