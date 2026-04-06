@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/routing/route_names.dart';
 import '../../core/theme/app_colors.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -19,6 +20,26 @@ class _LoginViewState extends ConsumerState<LoginView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _rememberMe = false;
+
+  static const _prefEmail = 'remember_me_email';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedEmail();
+  }
+
+  Future<void> _loadRememberedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedEmail = prefs.getString(_prefEmail);
+    if (savedEmail != null && mounted) {
+      setState(() {
+        _emailController.text = savedEmail;
+        _rememberMe = true;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -37,7 +58,13 @@ class _LoginViewState extends ConsumerState<LoginView> {
 
     final authState = ref.read(authProvider);
     if (authState.isAuthenticated && mounted) {
-      context.go(RouteNames.dashboard);
+      final prefs = await SharedPreferences.getInstance();
+      if (_rememberMe) {
+        await prefs.setString(_prefEmail, _emailController.text.trim());
+      } else {
+        await prefs.remove(_prefEmail);
+      }
+      if (mounted) context.go(RouteNames.dashboard);
     }
   }
 
@@ -171,22 +198,37 @@ class _LoginViewState extends ConsumerState<LoginView> {
                                   },
                                 ),
                                 
-                                // Forgot Password Link
+                                // Remember Me
                                 SizedBox(height: 12.h),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: () {},
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: AppColors.primary,
-                                      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                                      minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: Text(
-                                      'Mot de passe oublié ?',
-                                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.sp),
-                                    ),
+                                GestureDetector(
+                                  onTap: () => setState(() => _rememberMe = !_rememberMe),
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 20.w,
+                                        height: 20.w,
+                                        child: Checkbox(
+                                          value: _rememberMe,
+                                          onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                                          activeColor: AppColors.primary,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(4.r),
+                                          ),
+                                          side: BorderSide(color: AppColors.textSecondary, width: 1.5),
+                                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                      ),
+                                      SizedBox(width: 10.w),
+                                      Text(
+                                        'Se souvenir de moi',
+                                        style: TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 13.sp,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 SizedBox(height: 32.h),
