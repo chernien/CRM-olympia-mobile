@@ -117,7 +117,9 @@ class _DemandeFormViewState extends ConsumerState<DemandeFormView> {
                   child: ElevatedButton(
                     onPressed: state.isLoading ? null : _submit,
                     child: state.isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
+                        ? const CircularProgressIndicator.adaptive(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          )
                         : const Text('Soumettre la demande'),
                   ),
                 ),

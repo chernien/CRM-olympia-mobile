@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import '../../core/errors/failures.dart';
-import '../../core/network/dio_client.dart';
 import '../../models/task_model.dart';
 import '../task_service.dart';
 import 'mock_data.dart';
@@ -9,7 +8,7 @@ class MockTaskService extends TaskService {
   final List<TaskModel> _tasks = List.from(MockData.tasks);
   int _counter = MockData.tasks.length;
 
-  MockTaskService(DioClient dioClient) : super(dioClient);
+  MockTaskService(super.dioClient);
 
   @override
   Future<Either<Failure, List<TaskModel>>> getTasks({

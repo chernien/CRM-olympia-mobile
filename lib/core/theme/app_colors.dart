@@ -3,16 +3,11 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // Primary (Adjusted to match the softer blue in the screenshot)
-  static const Color primary = Color(0xFF5A8CFF);
+  // Brand Colors from Logo (OLYMPIA Peinture)
+  static const Color primary = Color(0xFF4278A1); // Steel Blue from logo outline and text
+  static const Color secondary = Color(0xFF5A9692); // Teal from logo fill
   static const Color primaryLight = Color(0xFF8FB4FF);
   static const Color primaryDark = Color(0xFF3B6BDB);
-
-  // Secondary
-  static const Color secondary = Color(0xFFE470E0); // Pinkish/Purple from screenshot
-  
-  // Pink accent
-  static const Color accentPink = Color(0xFFF472B6);
 
   // Status - Tâches (Restored)
   static const Color taskEnCours = Color(0xFFF59E0B);       // Jaune
@@ -34,8 +29,8 @@ class AppColors {
   static const Color priorityUrgente = Color(0xFFEF4444);
 
   // CA Segments
-  static const Color segmentIntern = Color(0xFF5A8CFF);
-  static const Color segmentExtern = Color(0xFFE470E0);
+  static const Color segmentIntern = Color(0xFF4278A1); // Primary Logo Color
+  static const Color segmentExtern = Color(0xFF5A9692); // Secondary Logo Color
   static const Color segmentOlybat = Color(0xFFF59E0B);
 
   // Neutral (Crucial for the soft UI look)
@@ -50,5 +45,4 @@ class AppColors {
   static const Color success = Color(0xFF10B981);
   static const Color warning = Color(0xFFF59E0B);
   static const Color error = Color(0xFFEF4444);
-  static const Color info = Color(0xFF3B82F6);
 }

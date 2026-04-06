@@ -22,8 +22,8 @@ class DemandeService {
         queryParameters: {
           'page': page,
           'pageSize': pageSize,
-          if (typeDemande != null) 'typeDemande': typeDemande,
-          if (statut != null) 'statut': statut,
+          'typeDemande': ?typeDemande,
+          'statut': ?statut,
         },
       );
       final demandes = (response.data['data'] as List)
@@ -66,7 +66,7 @@ class DemandeService {
         '${ApiConstants.demandes}/$demandeId/statut',
         data: {
           'statut': statut,
-          if (commentaire != null) 'commentaire': commentaire,
+          'commentaire': ?commentaire,
         },
       );
       return Right(DemandeModel.fromJson(response.data));

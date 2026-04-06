@@ -44,10 +44,11 @@ class DemandeListState {
   }
 }
 
-class DemandeListNotifier extends StateNotifier<DemandeListState> {
-  final DemandeService _demandeService;
+class DemandeListNotifier extends Notifier<DemandeListState> {
+  DemandeService get _demandeService => getIt<DemandeService>();
 
-  DemandeListNotifier(this._demandeService) : super(const DemandeListState());
+  @override
+  DemandeListState build() => const DemandeListState();
 
   Future<void> loadDemandes({bool refresh = false}) async {
     if (refresh) {
@@ -114,10 +115,11 @@ class DemandeDetailState {
   const DemandeDetailState({this.demande, this.isLoading = false, this.error});
 }
 
-class DemandeDetailNotifier extends StateNotifier<DemandeDetailState> {
-  final DemandeService _demandeService;
+class DemandeDetailNotifier extends Notifier<DemandeDetailState> {
+  DemandeService get _demandeService => getIt<DemandeService>();
 
-  DemandeDetailNotifier(this._demandeService) : super(const DemandeDetailState());
+  @override
+  DemandeDetailState build() => const DemandeDetailState();
 
   Future<void> loadDemande(String id) async {
     state = const DemandeDetailState(isLoading: true);
@@ -129,12 +131,6 @@ class DemandeDetailNotifier extends StateNotifier<DemandeDetailState> {
   }
 }
 
-final demandeListProvider =
-    StateNotifierProvider<DemandeListNotifier, DemandeListState>((ref) {
-  return DemandeListNotifier(getIt<DemandeService>());
-});
+final demandeListProvider = NotifierProvider<DemandeListNotifier, DemandeListState>(DemandeListNotifier.new);
 
-final demandeDetailProvider =
-    StateNotifierProvider<DemandeDetailNotifier, DemandeDetailState>((ref) {
-  return DemandeDetailNotifier(getIt<DemandeService>());
-});
+final demandeDetailProvider = NotifierProvider<DemandeDetailNotifier, DemandeDetailState>(DemandeDetailNotifier.new);

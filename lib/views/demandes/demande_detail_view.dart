@@ -33,7 +33,7 @@ class _DemandeDetailViewState extends ConsumerState<DemandeDetailView> {
       ),
       body: SafeArea(
         child: state.isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator.adaptive())
             : state.demande == null
                 ? const Center(child: Text('Demande introuvable'))
                 : SingleChildScrollView(

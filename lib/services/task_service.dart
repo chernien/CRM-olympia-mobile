@@ -21,7 +21,7 @@ class TaskService {
         queryParameters: {
           'page': page,
           'pageSize': pageSize,
-          if (statut != null) 'statut': statut,
+          'statut': ?statut,
         },
       );
       final tasks = (response.data['data'] as List)

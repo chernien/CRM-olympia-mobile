@@ -36,10 +36,11 @@ class TaskListState {
   }
 }
 
-class TaskListNotifier extends StateNotifier<TaskListState> {
-  final TaskService _taskService;
+class TaskListNotifier extends Notifier<TaskListState> {
+  TaskService get _taskService => getIt<TaskService>();
 
-  TaskListNotifier(this._taskService) : super(const TaskListState());
+  @override
+  TaskListState build() => const TaskListState();
 
   Future<void> loadTasks({bool refresh = false}) async {
     if (refresh) {
@@ -83,7 +84,4 @@ class TaskListNotifier extends StateNotifier<TaskListState> {
   }
 }
 
-final taskListProvider =
-    StateNotifierProvider<TaskListNotifier, TaskListState>((ref) {
-  return TaskListNotifier(getIt<TaskService>());
-});
+final taskListProvider = NotifierProvider<TaskListNotifier, TaskListState>(TaskListNotifier.new);

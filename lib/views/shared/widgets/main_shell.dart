@@ -1,5 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/routing/route_names.dart';
 import '../../../core/theme/app_colors.dart';
 
@@ -40,48 +42,64 @@ class MainShell extends StatelessWidget {
       body: child,
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 16),
+          padding: EdgeInsets.only(left: 24.w, right: 24.w, bottom: 16.h),
           child: Container(
-            height: 70,
+            height: 70.h,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(35),
+              borderRadius: BorderRadius.circular(35.r),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 20.r,
+                  offset: Offset(0, 10.h),
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _NavBarItem(
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home_rounded,
-                  isSelected: currentIndex == 0,
-                  onTap: () => _onItemTapped(0, context),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(35.r),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 15.r, sigmaY: 15.r),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5.w),
+                    borderRadius: BorderRadius.circular(35.r),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _NavBarItem(
+                        icon: Icons.home_outlined,
+                        activeIcon: Icons.home_rounded,
+                        label: 'Accueil',
+                        isSelected: currentIndex == 0,
+                        onTap: () => _onItemTapped(0, context),
+                      ),
+                      _NavBarItem(
+                        icon: Icons.task_outlined,
+                        activeIcon: Icons.task_rounded,
+                        label: 'Tâches',
+                        isSelected: currentIndex == 1,
+                        onTap: () => _onItemTapped(1, context),
+                      ),
+                      _NavBarItem(
+                        icon: Icons.description_outlined,
+                        activeIcon: Icons.description_rounded,
+                        label: 'Demandes',
+                        isSelected: currentIndex == 2,
+                        onTap: () => _onItemTapped(2, context),
+                      ),
+                      _NavBarItem(
+                        icon: Icons.person_outline,
+                        activeIcon: Icons.person_rounded,
+                        label: 'Profil',
+                        isSelected: currentIndex == 3,
+                        onTap: () => _onItemTapped(3, context),
+                      ),
+                    ],
+                  ),
                 ),
-                _NavBarItem(
-                  icon: Icons.task_outlined,
-                  activeIcon: Icons.task_rounded,
-                  isSelected: currentIndex == 1,
-                  onTap: () => _onItemTapped(1, context),
-                ),
-                _NavBarItem(
-                  icon: Icons.description_outlined,
-                  activeIcon: Icons.description_rounded,
-                  isSelected: currentIndex == 2,
-                  onTap: () => _onItemTapped(2, context),
-                ),
-                _NavBarItem(
-                  icon: Icons.person_outline,
-                  activeIcon: Icons.person_rounded,
-                  isSelected: currentIndex == 3,
-                  onTap: () => _onItemTapped(3, context),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -93,12 +111,14 @@ class MainShell extends StatelessWidget {
 class _NavBarItem extends StatelessWidget {
   final IconData icon;
   final IconData activeIcon;
+  final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _NavBarItem({
     required this.icon,
     required this.activeIcon,
+    required this.label,
     required this.isSelected,
     required this.onTap,
   });
@@ -108,25 +128,34 @@ class _NavBarItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.all(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutQuint,
+        padding: EdgeInsets.symmetric(horizontal: isSelected ? 20.w : 12.w, vertical: 12.h),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.transparent,
-          shape: BoxShape.circle,
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.4),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  )
-                ]
-              : null,
+          color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(30.r),
         ),
-        child: Icon(
-          isSelected ? activeIcon : icon,
-          color: isSelected ? Colors.white : AppColors.textSecondary,
-          size: 24,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSelected ? activeIcon : icon,
+              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              size: 24.sp,
+            ),
+            if (isSelected) ...[
+              SizedBox(width: 6.w),
+              Text(
+                label,
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14.sp,
+                ),
+              ),
+            ]
+          ],
         ),
       ),
     );

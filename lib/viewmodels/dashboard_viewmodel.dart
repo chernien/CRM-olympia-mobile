@@ -46,10 +46,11 @@ class DashboardState {
   }
 }
 
-class DashboardNotifier extends StateNotifier<DashboardState> {
-  final DashboardService _dashboardService;
+class DashboardNotifier extends Notifier<DashboardState> {
+  DashboardService get _dashboardService => getIt<DashboardService>();
 
-  DashboardNotifier(this._dashboardService) : super(const DashboardState());
+  @override
+  DashboardState build() => const DashboardState();
 
   Future<void> loadDashboard() async {
     state = state.copyWith(isLoading: true, error: null);
@@ -98,7 +99,4 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
   }
 }
 
-final dashboardProvider =
-    StateNotifierProvider<DashboardNotifier, DashboardState>((ref) {
-  return DashboardNotifier(getIt<DashboardService>());
-});
+final dashboardProvider = NotifierProvider<DashboardNotifier, DashboardState>(DashboardNotifier.new);

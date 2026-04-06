@@ -1,12 +1,11 @@
 import 'package:dartz/dartz.dart';
 import '../../core/errors/failures.dart';
-import '../../core/network/dio_client.dart';
 import '../../models/client_model.dart';
 import '../client_service.dart';
 import 'mock_data.dart';
 
 class MockClientService extends ClientService {
-  MockClientService(DioClient dioClient) : super(dioClient);
+  MockClientService(super.dioClient);
 
   @override
   Future<Either<Failure, List<ClientModel>>> searchClients(String query) async {

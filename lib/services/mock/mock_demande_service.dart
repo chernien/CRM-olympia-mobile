@@ -1,6 +1,5 @@
 import 'package:dartz/dartz.dart';
 import '../../core/errors/failures.dart';
-import '../../core/network/dio_client.dart';
 import '../../models/demande_model.dart';
 import '../demande_service.dart';
 import 'mock_data.dart';
@@ -9,7 +8,7 @@ class MockDemandeService extends DemandeService {
   final List<DemandeModel> _demandes = List.from(MockData.demandes);
   int _counter = MockData.demandes.length;
 
-  MockDemandeService(DioClient dioClient) : super(dioClient);
+  MockDemandeService(super.dioClient);
 
   @override
   Future<Either<Failure, List<DemandeModel>>> getDemandes({

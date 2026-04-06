@@ -173,7 +173,9 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
                   child: ElevatedButton(
                     onPressed: state.isLoading ? null : _submit,
                     child: state.isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
+                        ? const CircularProgressIndicator.adaptive(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          )
                         : const Text('Soumettre la tâche'),
                   ),
                 ),

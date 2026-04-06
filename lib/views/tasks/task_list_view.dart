@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/routing/route_names.dart';
 import '../../core/theme/app_colors.dart';
@@ -27,40 +28,49 @@ class _TaskListViewState extends ConsumerState<TaskListView> {
     final state = ref.watch(taskListProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mes Tâches')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.goNamed(RouteNames.taskForm),
-        icon: const Icon(Icons.add),
-        label: const Text('Nouvelle tâche'),
+      appBar: AppBar(
+        title: Text('Mes Tâches', style: TextStyle(fontSize: 20.sp)),
+        actions: [
+          IconButton(
+            onPressed: () => context.goNamed(RouteNames.taskForm),
+            icon: Icon(Icons.add_box_rounded, size: 26.w, color: Theme.of(context).primaryColor),
+          ),
+          SizedBox(width: 12.w),
+        ],
       ),
       body: SafeArea(
         child: state.isLoading && state.tasks.isEmpty
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator.adaptive())
             : RefreshIndicator(
                 onRefresh: () =>
                     ref.read(taskListProvider.notifier).loadTasks(refresh: true),
                 child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(16.r),
                   itemCount: state.tasks.length,
                   itemBuilder: (context, index) {
                     final task = state.tasks[index];
                     return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
+                      margin: EdgeInsets.only(bottom: 12.h),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                      elevation: 2,
+                      shadowColor: Colors.black.withValues(alpha: 0.05),
                       child: ListTile(
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                         title: Text(
                           task.nomClient,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16.sp),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(task.description, maxLines: 2, overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 4),
+                            SizedBox(height: 6.h),
+                            Text(task.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 14.sp)),
+                            SizedBox(height: 6.h),
                             Text(
                               task.numero ?? '',
                               style: TextStyle(
                                 color: Colors.grey[500],
-                                fontSize: 12,
+                                fontSize: 13.sp,
                               ),
                             ),
                           ],
@@ -96,14 +106,14 @@ class _TaskListViewState extends ConsumerState<TaskListView> {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
       ),
       child: Text(
         label,
-        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+        style: TextStyle(color: color, fontSize: 12.sp, fontWeight: FontWeight.w700),
       ),
     );
   }

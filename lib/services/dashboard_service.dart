@@ -15,8 +15,8 @@ class DashboardService {
       final response = await _dioClient.get(
         ApiConstants.caMensuel,
         queryParameters: {
-          if (mois != null) 'mois': mois,
-          if (annee != null) 'annee': annee,
+          'mois': ?mois,
+          'annee': ?annee,
         },
       );
       return Right(CAData.fromJson(response.data));
@@ -30,8 +30,8 @@ class DashboardService {
       final response = await _dioClient.get(
         ApiConstants.caTrimestriel,
         queryParameters: {
-          if (trimestre != null) 'trimestre': trimestre,
-          if (annee != null) 'annee': annee,
+          'trimestre': ?trimestre,
+          'annee': ?annee,
         },
       );
       return Right(CAData.fromJson(response.data));

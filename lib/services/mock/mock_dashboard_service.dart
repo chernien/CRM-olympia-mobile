@@ -1,12 +1,11 @@
 import 'package:dartz/dartz.dart';
 import '../../core/errors/failures.dart';
-import '../../core/network/dio_client.dart';
 import '../../models/dashboard_model.dart';
 import '../dashboard_service.dart';
 import 'mock_data.dart';
 
 class MockDashboardService extends DashboardService {
-  MockDashboardService(DioClient dioClient) : super(dioClient);
+  MockDashboardService(super.dioClient);
 
   @override
   Future<Either<Failure, CAData>> getCaMensuel({int? mois, int? annee}) async {

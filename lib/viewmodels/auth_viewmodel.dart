@@ -33,10 +33,11 @@ class AuthState {
   }
 }
 
-class AuthNotifier extends StateNotifier<AuthState> {
-  final AuthService _authService;
+class AuthNotifier extends Notifier<AuthState> {
+  AuthService get _authService => getIt<AuthService>();
 
-  AuthNotifier(this._authService) : super(const AuthState());
+  @override
+  AuthState build() => const AuthState();
 
   Future<void> login(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
@@ -73,6 +74,4 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier(getIt<AuthService>());
-});
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);

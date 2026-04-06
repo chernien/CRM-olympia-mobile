@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../core/theme/app_colors.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
 import 'widgets/ca_chart_widget.dart';
@@ -28,33 +30,20 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
     return Scaffold(
       body: SafeArea(
         child: state.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: () => ref.read(dashboardProvider.notifier).loadDashboard(),
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  children: [
-                    // Custom Header
-                    Row(
+            ? const Center(child: CircularProgressIndicator.adaptive())
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Fixed App Bar
+                  Padding(
+                    padding: EdgeInsets.only(left: 24.w, right: 24.w, top: 20.h, bottom: 8.h),
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Welcome Back',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                            ),
-                            Text(
-                              'Olympia User',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
-                                  ),
-                            ),
-                          ],
+                        // Clear, unboxed Logo
+                        SvgPicture.asset(
+                          'assets/images/OLY-svg.svg',
+                          height: 52.h,
                         ),
                         Container(
                           decoration: BoxDecoration(
@@ -62,24 +51,56 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 10.r,
+                                offset: Offset(0, 4.h),
                               )
                             ],
                           ),
                           child: IconButton(
-                            icon: const Icon(Icons.notifications_outlined, color: AppColors.textPrimary),
+                            icon: Icon(Icons.notifications_outlined, color: AppColors.textPrimary, size: 24.sp),
                             onPressed: () {},
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
+                  ),
+
+                  // Scrollable Content
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: () => ref.read(dashboardProvider.notifier).loadDashboard(),
+                      child: ListView(
+                        padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 16.h),
+                        children: [
+                          // Welcome Text (moved inside scroll)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Bienvenue',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14.sp,
+                                    ),
+                              ),
+                              Text(
+                                'Olympia User',
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textPrimary,
+                                      letterSpacing: -0.5,
+                                      fontSize: 24.sp,
+                                    ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 32.h),
 
                     // Period Selector (Custom Pill Style)
                     _buildPeriodSelector(state),
-                    const SizedBox(height: 32),
+                    SizedBox(height: 32.h),
 
                     // Stats cards grid
                     Row(
@@ -92,7 +113,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                             color: AppColors.primary,
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        SizedBox(width: 16.w),
                         Expanded(
                           child: StatsCardWidget(
                             title: 'Tâches ce mois',
@@ -103,7 +124,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     Row(
                       children: [
                         Expanded(
@@ -114,31 +135,35 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                             color: AppColors.secondary,
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        SizedBox(width: 16.w),
                         Expanded(
                           child: StatsCardWidget(
-                            title: 'En cours',
-                            value: '${state.statsTaches?.enCoursDeTraitement ?? 0}',
-                            icon: Icons.pending_actions,
-                            color: AppColors.warning,
+                            title: 'Tâches trim.',
+                            value: '${state.statsTaches?.trimestreEnCours ?? 0}',
+                            icon: Icons.task,
+                            color: AppColors.primaryLight,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
+                    SizedBox(height: 32.h),
 
                     // CA Chart
                     Text(
                       'Chiffre d\'Affaires',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
+                            fontSize: 16.sp,
                           ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     const CAChartWidget(),
-                    const SizedBox(height: 100), // Padding for floating nav bar
-                  ],
-                ),
+                          SizedBox(height: 100.h), // Padding for floating nav bar
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
       ),
     );
@@ -146,60 +171,45 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
 
   Widget _buildPeriodSelector(DashboardState state) {
     return Container(
-      padding: const EdgeInsets.all(6),
+      padding: EdgeInsets.all(6.r),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(30.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10.r,
+            offset: Offset(0, 4.h),
           ),
         ],
       ),
       child: Row(
         children: [
-          Expanded(
-            child: _periodButton(
-              title: 'Mensuel',
-              isSelected: state.selectedPeriod == PeriodType.mensuel,
-              onTap: () => ref.read(dashboardProvider.notifier).selectPeriod(PeriodType.mensuel),
-            ),
-          ),
-          Expanded(
-            child: _periodButton(
-              title: 'Trimestriel',
-              isSelected: state.selectedPeriod == PeriodType.trimestriel,
-              onTap: () => ref.read(dashboardProvider.notifier).selectPeriod(PeriodType.trimestriel),
-            ),
-          ),
+          _buildPeriodTab('Mensuel', state.selectedPeriod == PeriodType.mensuel, () {
+            ref.read(dashboardProvider.notifier).selectPeriod(PeriodType.mensuel);
+          }),
+          _buildPeriodTab('Trimestriel', state.selectedPeriod == PeriodType.trimestriel, () {
+            ref.read(dashboardProvider.notifier).selectPeriod(PeriodType.trimestriel);
+          }),
         ],
       ),
     );
   }
 
-  Widget _periodButton({required String title, required bool isSelected, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  )
-                ]
-              : null,
-        ),
-        child: Center(
+  Widget _buildPeriodTab(String text, bool isSelected, VoidCallback onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: EdgeInsets.symmetric(vertical: 10.h),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(24.r),
+          ),
           child: Text(
-            title,
+            text,
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: isSelected ? Colors.white : AppColors.textSecondary,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
