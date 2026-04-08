@@ -256,14 +256,18 @@ class _DemandeDetailViewState extends ConsumerState<DemandeDetailView> {
     final produit = data['produit'] as String? ?? '';
     final description = data['description'] as String? ?? '';
 
-    if (client.isNotEmpty)
+    if (client.isNotEmpty) {
       rows.add((Icons.business_outlined, 'Client', client));
-    if (produit.isNotEmpty)
+    }
+    if (produit.isNotEmpty) {
       rows.add((Icons.layers_outlined, 'Produit', produit));
-    if (chantier.isNotEmpty)
+    }
+    if (chantier.isNotEmpty) {
       rows.add((Icons.location_on_outlined, 'Chantier', chantier));
-    if (description.isNotEmpty)
+    }
+    if (description.isNotEmpty) {
       rows.add((Icons.notes_outlined, 'Description', description));
+    }
 
     if (rows.isEmpty) return const SizedBox.shrink();
 
