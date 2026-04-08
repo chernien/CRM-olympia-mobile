@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/injection.dart';
+import '../core/constants/app_constants.dart';
 import '../core/errors/failures.dart';
 import '../models/demande_model.dart';
 import '../services/demande_service.dart';
@@ -70,7 +71,7 @@ class DemandeListNotifier extends Notifier<DemandeListState> {
         isLoading: false,
         demandes: [...state.demandes, ...demandes],
         currentPage: state.currentPage + 1,
-        hasMore: demandes.length >= 20,
+        hasMore: demandes.length == AppConstants.defaultPageSize,
       ),
     );
   }
@@ -90,6 +91,34 @@ class DemandeListNotifier extends Notifier<DemandeListState> {
           isLoading: false,
           demandes: [newDemande, ...state.demandes],
         );
+        return true;
+      },
+    );
+  }
+
+  Future<bool> updateDemandeStatus(
+    String demandeId,
+    String statut, {
+    String? commentaire,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    final result = await _demandeService.updateDemandeStatus(
+      demandeId,
+      statut,
+      commentaire: commentaire,
+    );
+
+    return result.fold(
+      (failure) {
+        state = state.copyWith(isLoading: false, error: failure);
+        return false;
+      },
+      (updated) {
+        final updatedList = state.demandes
+            .map((d) => d.id == demandeId ? updated : d)
+            .toList();
+        state = state.copyWith(isLoading: false, demandes: updatedList);
         return true;
       },
     );
