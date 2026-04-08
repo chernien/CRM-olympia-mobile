@@ -260,7 +260,7 @@ class _IllustrationBox extends StatelessWidget {
               height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: page.iconColor.withOpacity(0.08),
+                color: page.iconColor.withValues(alpha: 0.08),
               ),
             ),
           ),
@@ -272,7 +272,7 @@ class _IllustrationBox extends StatelessWidget {
               height: 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: page.iconColor.withOpacity(0.06),
+                color: page.iconColor.withValues(alpha: 0.06),
               ),
             ),
           ),
@@ -285,7 +285,7 @@ class _IllustrationBox extends StatelessWidget {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: page.iconColor.withOpacity(0.2),
+                  color: page.iconColor.withValues(alpha: 0.2),
                   blurRadius: 30,
                   offset: const Offset(0, 10),
                 ),
@@ -327,7 +327,7 @@ class _AccentBadge extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withOpacity(0.5),
+        color: color.withValues(alpha: 0.5),
       ),
     );
   }

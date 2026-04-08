@@ -135,7 +135,7 @@ class _DemandeListViewState extends ConsumerState<DemandeListView> {
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: _filters.length,
-          separatorBuilder: (_, __) => SizedBox(width: 8.w),
+          separatorBuilder: (_, _) => SizedBox(width: 8.w),
           itemBuilder: (context, index) {
             final (value, label) = _filters[index];
             final isActive = _activeFilter == value;
