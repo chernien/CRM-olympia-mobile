@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/injection.dart';
+import '../core/constants/app_constants.dart';
 import '../core/errors/failures.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
@@ -58,7 +59,7 @@ class TaskListNotifier extends Notifier<TaskListState> {
         isLoading: false,
         tasks: [...state.tasks, ...tasks],
         currentPage: state.currentPage + 1,
-        hasMore: tasks.length >= 20,
+        hasMore: tasks.length == AppConstants.defaultPageSize,
       ),
     );
   }
@@ -78,6 +79,26 @@ class TaskListNotifier extends Notifier<TaskListState> {
           isLoading: false,
           tasks: [newTask, ...state.tasks],
         );
+        return true;
+      },
+    );
+  }
+
+  Future<bool> updateTaskStatus(String taskId, String statut) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    final result = await _taskService.updateTaskStatus(taskId, statut);
+
+    return result.fold(
+      (failure) {
+        state = state.copyWith(isLoading: false, error: failure);
+        return false;
+      },
+      (updatedTask) {
+        final updated = state.tasks
+            .map((t) => t.id == taskId ? updatedTask : t)
+            .toList();
+        state = state.copyWith(isLoading: false, tasks: updated);
         return true;
       },
     );

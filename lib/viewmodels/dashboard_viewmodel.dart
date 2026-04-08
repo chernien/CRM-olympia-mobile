@@ -63,34 +63,27 @@ class DashboardNotifier extends Notifier<DashboardState> {
       _dashboardService.getStatsTaches(),
     ]);
 
-    final caMensuel = results[0];
-    final caTrimestriel = results[1];
-    final statsVisites = results[2];
-    final statsTaches = results[3];
+    // Collect results before updating state — avoids sequential copyWith
+    // overwriting each other's error field and ensures isLoading is always reset.
+    CAData? caMensuel;
+    CAData? caTrimestriel;
+    StatsVisites? statsVisites;
+    StatsTaches? statsTaches;
+    Failure? error;
 
-    caMensuel.fold(
-      (f) => state = state.copyWith(isLoading: false, error: f),
-      (data) {
-        state = state.copyWith(caMensuel: data as CAData);
-      },
-    );
+    results[0].fold((f) => error = f, (d) => caMensuel = d as CAData);
+    results[1].fold((_) {}, (d) => caTrimestriel = d as CAData);
+    results[2].fold((_) {}, (d) => statsVisites = d as StatsVisites);
+    results[3].fold((_) {}, (d) => statsTaches = d as StatsTaches);
 
-    caTrimestriel.fold(
-      (_) {},
-      (data) => state = state.copyWith(caTrimestriel: data as CAData),
-    );
-
-    statsVisites.fold(
-      (_) {},
-      (data) => state = state.copyWith(statsVisites: data as StatsVisites),
-    );
-
-    statsTaches.fold(
-      (_) {},
-      (data) => state = state.copyWith(
-        statsTaches: data as StatsTaches,
-        isLoading: false,
-      ),
+    state = DashboardState(
+      caMensuel: caMensuel ?? state.caMensuel,
+      caTrimestriel: caTrimestriel ?? state.caTrimestriel,
+      statsVisites: statsVisites ?? state.statsVisites,
+      statsTaches: statsTaches ?? state.statsTaches,
+      selectedPeriod: state.selectedPeriod,
+      isLoading: false,
+      error: error,
     );
   }
 

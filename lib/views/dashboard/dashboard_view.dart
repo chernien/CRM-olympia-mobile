@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/routing/route_names.dart';
 import '../../core/theme/app_colors.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
 import 'widgets/ca_chart_widget.dart';
 import 'widgets/stats_card_widget.dart';
@@ -129,6 +130,9 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
   }
 
   Widget _buildWelcomeCard() {
+    final user = ref.watch(authProvider).user;
+    final displayName = user?.fullName ?? 'Olympia User';
+
     return Container(
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
@@ -168,7 +172,7 @@ class _DashboardViewState extends ConsumerState<DashboardView> {
                 ),
                 SizedBox(height: 2.h),
                 Text(
-                  'Olympia User',
+                  displayName,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20.sp,
