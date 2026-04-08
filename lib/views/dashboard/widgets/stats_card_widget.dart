@@ -19,46 +19,38 @@ class StatsCardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(20.r),
+      padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 20.r,
-            offset: Offset(0, 10.h),
-          ),
-        ],
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Icon in a soft circle
           Container(
-            padding: EdgeInsets.all(14.r),
+            padding: EdgeInsets.all(10.r),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(12.r),
             ),
-            child: Icon(icon, color: color, size: 26.sp),
+            child: Icon(icon, color: color, size: 20.sp),
           ),
-          SizedBox(height: 20.h),
+          SizedBox(height: 14.h),
           Text(
             value,
             style: TextStyle(
-              fontSize: 28.sp,
+              fontSize: 22.sp,
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
-              letterSpacing: -1,
             ),
           ),
-          SizedBox(height: 4.h),
+          SizedBox(height: 2.h),
           Text(
             title,
             style: TextStyle(
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w600,
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
               color: AppColors.textSecondary,
             ),
           ),

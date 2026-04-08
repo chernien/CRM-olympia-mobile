@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../viewmodels/dashboard_viewmodel.dart';
 
@@ -14,90 +15,118 @@ class CAChartWidget extends ConsumerWidget {
         ? state.caMensuel
         : state.caTrimestriel;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Chiffre d\'Affaires',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+    return Container(
+      padding: EdgeInsets.all(16.r),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Répartition CA',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: 8),
-            // Segmentation legend
-            Row(
+          ),
+          SizedBox(height: 10.h),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: [
                 _legendItem('Intern', AppColors.segmentIntern),
-                const SizedBox(width: 16),
+                SizedBox(width: 12.w),
                 _legendItem('Extern', AppColors.segmentExtern),
-                const SizedBox(width: 16),
+                SizedBox(width: 12.w),
                 _legendItem('Olybat', AppColors.segmentOlybat),
               ],
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 200,
-              child: caData != null && caData.points.isNotEmpty
-                  ? BarChart(
-                      BarChartData(
-                        barGroups: caData.points
-                            .asMap()
-                            .entries
-                            .map(
-                              (e) => BarChartGroupData(
-                                x: e.key,
-                                barRods: [
-                                  BarChartRodData(
-                                    toY: e.value.value,
-                                    color: AppColors.primary,
-                                    width: 20,
-                                    borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(4),
+          ),
+          SizedBox(height: 14.h),
+          SizedBox(
+            height: 190.h,
+            child: caData != null && caData.points.isNotEmpty
+                ? BarChart(
+                    BarChartData(
+                      barGroups: caData.points
+                          .asMap()
+                          .entries
+                          .map(
+                            (e) => BarChartGroupData(
+                              x: e.key,
+                              barRods: [
+                                BarChartRodData(
+                                  toY: e.value.value,
+                                  color: AppColors.primary,
+                                  width: 18.w,
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(6.r),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                          .toList(),
+                      titlesData: FlTitlesData(
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            getTitlesWidget: (value, meta) {
+                              final index = value.toInt();
+                              if (index < caData.points.length) {
+                                return Padding(
+                                  padding: EdgeInsets.only(top: 6.h),
+                                  child: Text(
+                                    caData.points[index].label,
+                                    style: TextStyle(
+                                      fontSize: 10.sp,
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                ],
-                              ),
-                            )
-                            .toList(),
-                        titlesData: FlTitlesData(
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) {
-                                final index = value.toInt();
-                                if (index < caData.points.length) {
-                                  return Text(
-                                    caData.points[index].label,
-                                    style: const TextStyle(fontSize: 10),
-                                  );
-                                }
-                                return const SizedBox();
-                              },
-                            ),
-                          ),
-                          leftTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
+                                );
+                              }
+                              return const SizedBox();
+                            },
                           ),
                         ),
-                        borderData: FlBorderData(show: false),
-                        gridData: const FlGridData(show: false),
+                        leftTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                       ),
-                    )
-                  : const Center(
-                      child: Text('Aucune donnée disponible'),
+                      borderData: FlBorderData(show: false),
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: 20000,
+                        getDrawingHorizontalLine: (value) => FlLine(
+                          color: AppColors.border.withValues(alpha: 0.5),
+                          strokeWidth: 1,
+                        ),
+                      ),
                     ),
-            ),
-          ],
-        ),
+                  )
+                : Center(
+                    child: Text(
+                      'Aucune donnée disponible',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12.sp,
+                      ),
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -107,15 +136,22 @@ class CAChartWidget extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 10.w,
+          height: 10.w,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(3.r),
           ),
         ),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 12)),
+        SizedBox(width: 5.w),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.sp,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ],
     );
   }

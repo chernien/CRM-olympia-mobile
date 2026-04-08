@@ -34,8 +34,7 @@ class AppColors {
   static const Color segmentOlybat = Color(0xFFF59E0B);
 
   // Neutral (Crucial for the soft UI look)
-  static const Color background = Color(0xFFF3F6FA); // Soft grayish blue
-  static const Color surface = Color(0xFFFFFFFF);
+static const Color background = Color(0xFFFAFBFD);  static const Color surface = Color(0xFFFFFFFF);
   static const Color textPrimary = Color(0xFF1E293B);
   static const Color textSecondary = Color(0xFF94A3B8);
   static const Color border = Color(0xFFF1F5F9);

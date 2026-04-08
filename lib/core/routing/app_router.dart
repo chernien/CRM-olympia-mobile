@@ -8,6 +8,7 @@ import '../../views/tasks/task_form_view.dart';
 import '../../views/tasks/task_list_view.dart';
 import '../../views/demandes/demande_list_view.dart';
 import '../../views/demandes/demande_form_view.dart';
+import '../../views/demandes/demande_type_selection_view.dart';
 import '../../views/demandes/demande_detail_view.dart';
 import '../../views/profile/profile_view.dart';
 import '../../views/notifications/notifications_view.dart';
@@ -70,9 +71,22 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: 'new',
-                name: RouteNames.demandeForm,
+                name: RouteNames.demandeTypeSelection,
                 parentNavigatorKey: _rootNavigatorKey,
-                builder: (context, state) => const DemandeFormView(),
+                builder: (context, state) => const DemandeTypeSelectionView(),
+                routes: [
+                  GoRoute(
+                    path: ':type',
+                    name: RouteNames.demandeForm,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) {
+                      final type = int.tryParse(
+                              state.pathParameters['type'] ?? '1') ??
+                          1;
+                      return DemandeFormView(type: type);
+                    },
+                  ),
+                ],
               ),
               GoRoute(
                 path: ':id',
@@ -89,12 +103,13 @@ class AppRouter {
             name: RouteNames.profile,
             builder: (context, state) => const ProfileView(),
           ),
-          GoRoute(
-            path: RouteNames.notifications,
-            name: RouteNames.notifications,
-            builder: (context, state) => const NotificationsView(),
-          ),
         ],
+      ),
+      GoRoute(
+        path: RouteNames.notifications,
+        name: RouteNames.notifications,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const NotificationsView(),
       ),
     ],
   );

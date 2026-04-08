@@ -8,6 +8,7 @@ class RouteNames {
   static const String tasks = '/tasks';
   static const String taskForm = 'taskForm';
   static const String demandes = '/demandes';
+  static const String demandeTypeSelection = 'demandeTypeSelection';
   static const String demandeForm = 'demandeForm';
   static const String demandeDetail = 'demandeDetail';
   static const String profile = '/profile';
