@@ -99,7 +99,8 @@ class MockData {
       codeClient: 'CLI-001',
       nomClient: 'Brico Déco Casablanca',
       adresse: '123 Bd Zerktouni, Casablanca',
-      description: 'Visite commerciale — présentation nouvelle gamme peinture extérieure',
+      description:
+          'Visite commerciale — présentation nouvelle gamme peinture extérieure',
       datePrevue: DateTime(2026, 4, 7),
       priorite: 'haute',
       statut: 'en_cours_traitement',
@@ -127,7 +128,8 @@ class MockData {
       codeClient: 'CLI-003',
       nomClient: 'Matériaux El Jadida',
       adresse: '78 Avenue Hassan II, El Jadida',
-      description: 'Livraison échantillons peinture murale + catalogue produits',
+      description:
+          'Livraison échantillons peinture murale + catalogue produits',
       datePrevue: DateTime(2026, 4, 10),
       priorite: 'urgente',
       statut: 'en_cours_traitement',
@@ -176,7 +178,8 @@ class MockData {
       commercialNom: 'Taha Mejdoub',
       formData: {
         'codeClient': 'CLI-001',
-        'description': "Demande 3 échantillons peinture satinée (blanc, ivoire, gris perle)",
+        'description':
+            "Demande 3 échantillons peinture satinée (blanc, ivoire, gris perle)",
         'references': ['REF-SAT-001', 'REF-SAT-002', 'REF-SAT-003'],
       },
       createdAt: DateTime(2026, 4, 1),
@@ -197,7 +200,8 @@ class MockData {
       commercialNom: 'Taha Mejdoub',
       formData: {
         'codeClient': 'CLI-005',
-        'description': 'Réclamation: peinture écaillée après 2 mois — lot #4521',
+        'description':
+            'Réclamation: peinture écaillée après 2 mois — lot #4521',
         'gravite': 'haute',
       },
       commentaire: 'Client mécontent, demande remplacement urgent',
@@ -229,7 +233,8 @@ class MockData {
         'ice': '002345678000012',
         'telephone': '0528-334455',
         'email': 'contact@peintures-oasis.ma',
-        'description': 'Nouveau distributeur zone Souss — recommandé par CLI-002',
+        'description':
+            'Nouveau distributeur zone Souss — recommandé par CLI-002',
       },
       createdAt: DateTime(2026, 3, 20),
       historique: [

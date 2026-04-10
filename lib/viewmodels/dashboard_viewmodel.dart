@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../core/config/injection.dart';
+import '../core/config/service_providers.dart';
 import '../core/errors/failures.dart';
 import '../models/dashboard_model.dart';
 import '../services/dashboard_service.dart';
@@ -25,6 +25,9 @@ class DashboardState {
     this.error,
   });
 
+  /// True only on the very first load (no data in hand yet).
+  bool get isInitialLoad => isLoading && caMensuel == null;
+
   DashboardState copyWith({
     CAData? caMensuel,
     CAData? caTrimestriel,
@@ -47,15 +50,19 @@ class DashboardState {
 }
 
 class DashboardNotifier extends Notifier<DashboardState> {
-  DashboardService get _dashboardService => getIt<DashboardService>();
+  late final DashboardService _dashboardService;
 
   @override
-  DashboardState build() => const DashboardState();
+  DashboardState build() {
+    _dashboardService = ref.read(dashboardServiceProvider);
+    return const DashboardState();
+  }
 
-  Future<void> loadDashboard() async {
+  Future<void> loadDashboard({bool refresh = false}) async {
+    if (refresh) _dashboardService.clearCache();
     state = state.copyWith(isLoading: true, error: null);
 
-    // Load all data in parallel
+    // Load all data in parallel.
     final results = await Future.wait([
       _dashboardService.getCaMensuel(),
       _dashboardService.getCaTrimestriel(),
@@ -63,18 +70,19 @@ class DashboardNotifier extends Notifier<DashboardState> {
       _dashboardService.getStatsTaches(),
     ]);
 
-    // Collect results before updating state — avoids sequential copyWith
-    // overwriting each other's error field and ensures isLoading is always reset.
+    // Collect results before updating state to avoid sequential copyWith
+    // overwriting each other's error field.
     CAData? caMensuel;
     CAData? caTrimestriel;
     StatsVisites? statsVisites;
     StatsTaches? statsTaches;
     Failure? error;
 
-    results[0].fold((f) => error = f, (d) => caMensuel = d as CAData);
-    results[1].fold((_) {}, (d) => caTrimestriel = d as CAData);
-    results[2].fold((_) {}, (d) => statsVisites = d as StatsVisites);
-    results[3].fold((_) {}, (d) => statsTaches = d as StatsTaches);
+    results[0].fold((f) => error ??= f, (d) => caMensuel = d as CAData);
+    results[1].fold((f) => error ??= f, (d) => caTrimestriel = d as CAData);
+    results[2]
+        .fold((f) => error ??= f, (d) => statsVisites = d as StatsVisites);
+    results[3].fold((f) => error ??= f, (d) => statsTaches = d as StatsTaches);
 
     state = DashboardState(
       caMensuel: caMensuel ?? state.caMensuel,
@@ -92,4 +100,5 @@ class DashboardNotifier extends Notifier<DashboardState> {
   }
 }
 
-final dashboardProvider = NotifierProvider<DashboardNotifier, DashboardState>(DashboardNotifier.new);
+final dashboardProvider =
+    NotifierProvider<DashboardNotifier, DashboardState>(DashboardNotifier.new);

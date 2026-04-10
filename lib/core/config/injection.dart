@@ -4,6 +4,8 @@ import 'package:internet_connection_checker/internet_connection_checker.dart';
 import '../network/dio_client.dart';
 import '../network/network_info.dart';
 import 'app_config.dart';
+import 'package:injectable/injectable.dart';
+import 'injection.config.dart';
 import '../../services/auth_service.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/task_service.dart';
@@ -19,7 +21,10 @@ import '../../services/mock/mock_upload_service.dart';
 
 final getIt = GetIt.instance;
 
+@InjectableInit()
 Future<void> configureDependencies() async {
+  getIt.init(); // Initialize injectable dependencies properly
+
   // External
   getIt.registerLazySingleton<FlutterSecureStorage>(
     () => const FlutterSecureStorage(),

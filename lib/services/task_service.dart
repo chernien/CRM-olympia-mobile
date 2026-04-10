@@ -25,11 +25,13 @@ class TaskService {
         },
       );
       final tasks = (response.data['data'] as List)
-          .map((e) => TaskModel.fromJson(e))
+          .map((e) => TaskModel.fromJson(e as Map<String, dynamic>))
           .toList();
       return Right(tasks);
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur de données: $e'));
     }
   }
 
@@ -39,9 +41,11 @@ class TaskService {
         ApiConstants.taches,
         data: task.toJson(),
       );
-      return Right(TaskModel.fromJson(response.data));
+      return Right(TaskModel.fromJson(response.data as Map<String, dynamic>));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur de données: $e'));
     }
   }
 
@@ -54,9 +58,11 @@ class TaskService {
         '${ApiConstants.taches}/$taskId/statut',
         data: {'statut': statut},
       );
-      return Right(TaskModel.fromJson(response.data));
+      return Right(TaskModel.fromJson(response.data as Map<String, dynamic>));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur de données: $e'));
     }
   }
 }

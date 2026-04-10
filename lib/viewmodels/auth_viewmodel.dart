@@ -1,10 +1,11 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../core/config/injection.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import '../core/config/service_providers.dart';
 import '../core/errors/failures.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
-// Auth state
+part 'auth_viewmodel.g.dart';
+
 class AuthState {
   final UserModel? user;
   final bool isLoading;
@@ -33,11 +34,15 @@ class AuthState {
   }
 }
 
-class AuthNotifier extends Notifier<AuthState> {
-  AuthService get _authService => getIt<AuthService>();
+@riverpod
+class Auth extends _$Auth {
+  late final AuthService _authService;
 
   @override
-  AuthState build() => const AuthState();
+  AuthState build() {
+    _authService = ref.read(authServiceProvider);
+    return const AuthState();
+  }
 
   Future<void> login(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
@@ -45,10 +50,7 @@ class AuthNotifier extends Notifier<AuthState> {
     final result = await _authService.login(email, password);
 
     result.fold(
-      (failure) => state = state.copyWith(
-        isLoading: false,
-        error: failure,
-      ),
+      (failure) => state = state.copyWith(isLoading: false, error: failure),
       (user) => state = state.copyWith(
         isLoading: false,
         user: user,
@@ -73,5 +75,3 @@ class AuthNotifier extends Notifier<AuthState> {
     state = const AuthState();
   }
 }
-
-final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
