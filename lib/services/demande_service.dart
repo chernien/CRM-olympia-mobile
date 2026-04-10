@@ -27,32 +27,42 @@ class DemandeService {
         },
       );
       final demandes = (response.data['data'] as List)
-          .map((e) => DemandeModel.fromJson(e))
+          .map((e) => DemandeModel.fromJson(e as Map<String, dynamic>))
           .toList();
       return Right(demandes);
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur de données: $e'));
     }
   }
 
   Future<Either<Failure, DemandeModel>> getDemandeById(String id) async {
     try {
-      final response = await _dioClient.get('${ApiConstants.demandes}/$id');
-      return Right(DemandeModel.fromJson(response.data));
+      final response =
+          await _dioClient.get('${ApiConstants.demandes}/$id');
+      return Right(
+          DemandeModel.fromJson(response.data as Map<String, dynamic>));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur de données: $e'));
     }
   }
 
-  Future<Either<Failure, DemandeModel>> createDemande(DemandeModel demande) async {
+  Future<Either<Failure, DemandeModel>> createDemande(
+      DemandeModel demande) async {
     try {
       final response = await _dioClient.post(
         ApiConstants.demandes,
         data: demande.toJson(),
       );
-      return Right(DemandeModel.fromJson(response.data));
+      return Right(
+          DemandeModel.fromJson(response.data as Map<String, dynamic>));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur de données: $e'));
     }
   }
 
@@ -69,9 +79,12 @@ class DemandeService {
           'commentaire': ?commentaire,
         },
       );
-      return Right(DemandeModel.fromJson(response.data));
+      return Right(
+          DemandeModel.fromJson(response.data as Map<String, dynamic>));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur de données: $e'));
     }
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../views/auth/login_view.dart';
-import '../../views/splash/splash_view.dart';
+// import '../../views/splash/splash_view.dart'; // Removed redundant splash 
 import '../../views/onboarding/onboarding_view.dart';
 import '../../views/dashboard/dashboard_view.dart';
 import '../../views/tasks/task_form_view.dart';
@@ -21,17 +21,11 @@ class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
-  static GoRouter get router => _router;
-
-  static final GoRouter _router = GoRouter(
+  static GoRouter router(String initialLocation) => GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: RouteNames.splash,
+    initialLocation: initialLocation,
     routes: [
-      GoRoute(
-        path: RouteNames.splash,
-        name: RouteNames.splash,
-        builder: (context, state) => const SplashView(),
-      ),
+      // Splash route removed
       GoRoute(
         path: RouteNames.onboarding,
         name: RouteNames.onboarding,

@@ -34,7 +34,8 @@ class AppColors {
   static const Color segmentOlybat = Color(0xFFF59E0B);
 
   // Neutral (Crucial for the soft UI look)
-static const Color background = Color(0xFFFAFBFD);  static const Color surface = Color(0xFFFFFFFF);
+  static const Color background = Color(0xFFFAFBFD);
+  static const Color surface = Color(0xFFFFFFFF);
   static const Color textPrimary = Color(0xFF1E293B);
   static const Color textSecondary = Color(0xFF94A3B8);
   static const Color border = Color(0xFFF1F5F9);
@@ -44,4 +45,18 @@ static const Color background = Color(0xFFFAFBFD);  static const Color surface =
   static const Color success = Color(0xFF10B981);
   static const Color warning = Color(0xFFF59E0B);
   static const Color error = Color(0xFFEF4444);
+
+  // Pre-computed alpha variants (avoid withValues per-frame)
+  static final Color primarySoft   = primary.withValues(alpha: 0.95);
+  static final Color primaryGhost  = primary.withValues(alpha: 0.08);
+  static final Color primaryShadow = primary.withValues(alpha: 0.35);
+  static final Color secondarySoft = secondary.withValues(alpha: 0.95);
+  static final Color whiteSoft     = Colors.white.withValues(alpha: 0.9);
+  static final Color whiteGhost    = Colors.white.withValues(alpha: 0.2);
+  static final Color blackShadow   = Colors.black.withValues(alpha: 0.05);
+  static final Color primaryGradientStart = primary.withValues(alpha: 0.95);
+  static final Color secondaryGradientStart = secondary.withValues(alpha: 0.95);
+  // Named white-opacity variants — use these instead of calling withValues per frame.
+  static final Color white20 = Colors.white.withValues(alpha: 0.2);
+  static final Color white90 = Colors.white.withValues(alpha: 0.9);
 }

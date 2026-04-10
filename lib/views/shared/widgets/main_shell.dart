@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter/cupertino.dart';
 import '../../../core/routing/route_names.dart';
 import '../../../core/theme/app_colors.dart';
 
@@ -90,8 +91,8 @@ class MainShell extends StatelessWidget {
                         onTap: () => _onItemTapped(2, context),
                       ),
                       _NavBarItem(
-                        icon: Icons.person_outline,
-                        activeIcon: Icons.person_rounded,
+                        icon: CupertinoIcons.person,
+                        activeIcon: CupertinoIcons.person_solid,
                         label: 'Profil',
                         isSelected: currentIndex == 3,
                         onTap: () => _onItemTapped(3, context),

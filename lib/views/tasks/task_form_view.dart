@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/task_model.dart';
 import '../../viewmodels/task_viewmodel.dart';
@@ -21,10 +24,18 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
   final _descriptionController = TextEditingController();
   final _datePrevueController = TextEditingController();
   DateTime _datePrevue = DateTime.now().add(const Duration(days: 1));
-  String _priorite = 'normale';
+
+  // Uses AppConstants so it stays in sync with status badge + filter logic.
+  String _priorite = AppConstants.priorityNormale;
 
   String _formatDate(DateTime date) =>
-      '${date.day}/${date.month}/${date.year}';
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+  @override
+  void initState() {
+    super.initState();
+    _datePrevueController.text = _formatDate(_datePrevue);
+  }
 
   @override
   void dispose() {
@@ -42,20 +53,26 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
     final task = TaskModel(
       codeClient: _codeClientController.text.trim(),
       nomClient: _nomClientController.text.trim(),
-      adresse: _adresseController.text.trim(),
+      adresse: _adresseController.text.trim().isEmpty
+          ? null
+          : _adresseController.text.trim(),
       description: _descriptionController.text.trim(),
       datePrevue: _datePrevue,
       priorite: _priorite,
     );
 
-    final success = await ref.read(taskListProvider.notifier).createTask(task);
+    final success =
+        await ref.read(taskListProvider.notifier).createTask(task);
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tâche créée avec succès'),
-          backgroundColor: AppColors.primary,
-        ),
+      Fluttertoast.showToast(
+        msg: 'Tâche créée avec succès',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        backgroundColor: AppColors.success,
+        textColor: Colors.white,
+        fontSize: 14.0,
       );
       context.pop();
     }
@@ -63,8 +80,10 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(taskListProvider);
-    _datePrevueController.text = _formatDate(_datePrevue);
+    // isSubmitting drives the button spinner — does NOT affect the list loading state.
+    final isSubmitting =
+        ref.watch(taskListProvider.select((s) => s.isSubmitting));
+    final error = ref.watch(taskListProvider.select((s) => s.error));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Nouvelle Tâche')),
@@ -75,7 +94,8 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  padding:
+                      EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -84,69 +104,100 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
                         hint: 'Code client',
                         prefixIcon: Icons.search,
                         required: true,
-                        requiredMessage: 'Veuillez renseigner le code client',
+                        requiredMessage:
+                            'Veuillez renseigner le code client',
                       ),
-                      const SizedBox(height: 14),
+                      SizedBox(height: 14.h),
                       AppTextField(
                         controller: _nomClientController,
                         hint: 'Nom client',
                         prefixIcon: Icons.person_outline,
                         required: true,
-                        requiredMessage: 'Veuillez renseigner le nom client',
+                        requiredMessage:
+                            'Veuillez renseigner le nom client',
                       ),
-                      const SizedBox(height: 14),
+                      SizedBox(height: 14.h),
                       AppTextField(
                         controller: _adresseController,
                         hint: 'Adresse',
                         prefixIcon: Icons.location_on_outlined,
                       ),
-                      const SizedBox(height: 14),
+                      SizedBox(height: 14.h),
                       AppTextField(
                         controller: _descriptionController,
                         hint: 'Description',
                         maxLines: 4,
                         required: true,
-                        requiredMessage: 'Veuillez renseigner la description',
+                        requiredMessage:
+                            'Veuillez renseigner la description',
                       ),
-                      const SizedBox(height: 14),
+                      SizedBox(height: 14.h),
                       AppDateField(
                         controller: _datePrevueController,
                         hint: 'Date prévue',
                         prefixIcon: Icons.calendar_today_outlined,
                         required: true,
-                        requiredMessage: 'Veuillez sélectionner la date prévue',
+                        requiredMessage:
+                            'Veuillez sélectionner la date prévue',
                         onTap: () async {
                           final date = await showDatePicker(
                             context: context,
                             initialDate: _datePrevue,
                             firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
+                            lastDate: DateTime.now()
+                                .add(const Duration(days: 365)),
                           );
                           if (date != null) {
-                            setState(() => _datePrevue = date);
+                            setState(() {
+                              _datePrevue = date;
+                              _datePrevueController.text =
+                                  _formatDate(date);
+                            });
                           }
                         },
                       ),
-                      const SizedBox(height: 14),
+                      SizedBox(height: 14.h),
                       AppDropdownField<String>(
                         value: _priorite,
                         hint: 'Priorité',
                         prefixIcon: Icons.flag_outlined,
-                        requiredMessage: 'Veuillez sélectionner la priorité',
+                        requiredMessage:
+                            'Veuillez sélectionner la priorité',
                         items: const [
-                          DropdownMenuItem(value: 'normale', child: Text('Normale')),
-                          DropdownMenuItem(value: 'haute', child: Text('Haute')),
-                          DropdownMenuItem(value: 'urgente', child: Text('Urgente')),
+                          DropdownMenuItem(
+                            value: AppConstants.priorityNormale,
+                            child: Text('Normale'),
+                          ),
+                          DropdownMenuItem(
+                            value: AppConstants.priorityHaute,
+                            child: Text('Haute'),
+                          ),
+                          DropdownMenuItem(
+                            value: AppConstants.priorityUrgente,
+                            child: Text('Urgente'),
+                          ),
                         ],
                         onChanged: (v) {
                           if (v != null) setState(() => _priorite = v);
                         },
                       ),
-                      if (state.error != null) ...[
-                        const SizedBox(height: 16),
-                        Text(
-                          state.error!.message,
-                          style: const TextStyle(color: AppColors.secondary),
+                      if (error != null) ...[
+                        SizedBox(height: 16.h),
+                        Row(
+                          children: [
+                            Icon(Icons.error_outline_rounded,
+                                color: AppColors.error, size: 16.r),
+                            SizedBox(width: 8.w),
+                            Expanded(
+                              child: Text(
+                                error.message,
+                                style: TextStyle(
+                                  color: AppColors.error,
+                                  fontSize: 13.sp,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],
@@ -156,40 +207,39 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
               SafeArea(
                 top: false,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-                  child: Container(
+                  padding: EdgeInsets.fromLTRB(16.w, 10.h, 16.w, 18.h),
+                  child: SizedBox(
                     width: double.infinity,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(20),
-                        onTap: state.isLoading ? null : _submit,
-                        child: Center(
-                          child: state.isLoading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text(
-                                  'Soumettre la tâche',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                    height: 1.1,
-                                  ),
-                                ),
+                    height: 56.h,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        disabledBackgroundColor:
+                            AppColors.primary.withValues(alpha: 0.6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20.r),
                         ),
+                        elevation: 0,
                       ),
+                      onPressed: isSubmitting ? null : _submit,
+                      child: isSubmitting
+                          ? SizedBox(
+                              width: 22.r,
+                              height: 22.r,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              'Soumettre la tâche',
+                              style: TextStyle(
+                                fontSize: 15.sp,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                height: 1.1,
+                              ),
+                            ),
                     ),
                   ),
                 ),

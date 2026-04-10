@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -111,9 +110,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
                   // Vector Logo integrated beautifully
                   Hero(
                     tag: 'olympia_logo',
-                    child: SvgPicture.asset(
-                      'assets/images/OLY-svg.svg',
-                      height: 70.h,
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 100.h, // Adjusted height for clear visibility
                     ),
                   ),
                   SizedBox(height: 48.h),
