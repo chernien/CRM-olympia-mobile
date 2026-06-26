@@ -8,7 +8,7 @@ class MockDemandeService extends DemandeService {
   final List<DemandeModel> _demandes = List.from(MockData.demandes);
   int _counter = MockData.demandes.length;
 
-  MockDemandeService(super.dioClient);
+  MockDemandeService(super.dioClient, super.networkInfo);
 
   @override
   Future<Either<Failure, List<DemandeModel>>> getDemandes({

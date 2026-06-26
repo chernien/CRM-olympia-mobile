@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'injection.dart';
+import '../network/dio_client.dart';
 import '../../services/auth_service.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/task_service.dart';
@@ -32,3 +33,6 @@ final clientServiceProvider =
 
 final uploadServiceProvider =
     Provider<UploadService>((ref) => getIt<UploadService>());
+
+final dioClientProvider =
+    Provider<DioClient>((ref) => getIt<DioClient>());

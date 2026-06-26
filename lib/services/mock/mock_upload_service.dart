@@ -3,7 +3,7 @@ import '../../core/errors/failures.dart';
 import '../upload_service.dart';
 
 class MockUploadService extends UploadService {
-  MockUploadService(super.dioClient);
+  MockUploadService(super.dioClient, super.networkInfo);
 
   @override
   Future<Either<Failure, String>> uploadFile(String filePath) async {

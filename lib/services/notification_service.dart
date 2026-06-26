@@ -1,7 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:injectable/injectable.dart';
 
-@lazySingleton
 class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -32,10 +30,9 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
     );
-    const iosDetails = DarwinNotificationDetails();
     const details = NotificationDetails(
       android: androidDetails,
-      iOS: iosDetails,
+      iOS: DarwinNotificationDetails(),
     );
     await _plugin.show(
       id: id,

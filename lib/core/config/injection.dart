@@ -18,6 +18,7 @@ import '../../services/mock/mock_task_service.dart';
 import '../../services/mock/mock_demande_service.dart';
 import '../../services/mock/mock_client_service.dart';
 import '../../services/mock/mock_upload_service.dart';
+import '../../services/notification_service.dart';
 
 final getIt = GetIt.instance;
 
@@ -30,60 +31,64 @@ Future<void> configureDependencies() async {
     () => const FlutterSecureStorage(),
   );
 
+  // NetworkInfo is always registered — needed in all modes.
+  getIt.registerLazySingleton<InternetConnectionChecker>(
+    () => InternetConnectionChecker.instance,
+  );
+  getIt.registerLazySingleton<NetworkInfo>(
+    () => NetworkInfoImpl(getIt()),
+  );
+  getIt.registerLazySingleton<NotificationService>(
+    () => NotificationService(),
+  );
+
+  // DioClient is identical in all modes (its baseUrl/interceptors are static).
+  getIt.registerLazySingleton<DioClient>(
+    () => DioClient(getIt()),
+  );
+
+  // ─── AUTH ──────────────────────────────────────────────────────
+  // Auth is wired to the real backend and toggled independently of the data
+  // mocks, so login works against the API even while other features are mocked.
+  getIt.registerLazySingleton<AuthService>(
+    () => AppConfig.useMockAuth
+        ? MockAuthService(getIt(), getIt())
+        : AuthService(getIt(), getIt()),
+  );
+
   if (AppConfig.useMockData) {
-    // ─── MOCK MODE ─────────────────────────────────────────────
-    // DioClient is created but never used (satisfies parent constructors).
-    // Login: taha@olympia.com / password123  (commercial)
-    //        admin@olympia.com / admin123     (admin)
-    getIt.registerLazySingleton<DioClient>(
-      () => DioClient(getIt()),
-    );
-    getIt.registerLazySingleton<AuthService>(
-      () => MockAuthService(getIt(), getIt()),
-    );
+    // ─── MOCK DATA ─────────────────────────────────────────────
     getIt.registerLazySingleton<DashboardService>(
-      () => MockDashboardService(getIt()),
+      () => MockDashboardService(getIt(), getIt()),
     );
     getIt.registerLazySingleton<TaskService>(
-      () => MockTaskService(getIt()),
+      () => MockTaskService(getIt(), getIt()),
     );
     getIt.registerLazySingleton<DemandeService>(
-      () => MockDemandeService(getIt()),
+      () => MockDemandeService(getIt(), getIt()),
     );
     getIt.registerLazySingleton<ClientService>(
-      () => MockClientService(getIt()),
+      () => MockClientService(getIt(), getIt()),
     );
     getIt.registerLazySingleton<UploadService>(
-      () => MockUploadService(getIt()),
+      () => MockUploadService(getIt(), getIt()),
     );
   } else {
-    // ─── REAL API MODE ─────────────────────────────────────────
-    getIt.registerLazySingleton<InternetConnectionChecker>(
-      () => InternetConnectionChecker.instance,
-    );
-    getIt.registerLazySingleton<NetworkInfo>(
-      () => NetworkInfoImpl(getIt()),
-    );
-    getIt.registerLazySingleton<DioClient>(
-      () => DioClient(getIt()),
-    );
-    getIt.registerLazySingleton<AuthService>(
-      () => AuthService(getIt(), getIt()),
-    );
+    // ─── REAL API DATA ─────────────────────────────────────────
     getIt.registerLazySingleton<DashboardService>(
-      () => DashboardService(getIt()),
+      () => DashboardService(getIt(), getIt()),
     );
     getIt.registerLazySingleton<TaskService>(
-      () => TaskService(getIt()),
+      () => TaskService(getIt(), getIt()),
     );
     getIt.registerLazySingleton<DemandeService>(
-      () => DemandeService(getIt()),
+      () => DemandeService(getIt(), getIt()),
     );
     getIt.registerLazySingleton<ClientService>(
-      () => ClientService(getIt()),
+      () => ClientService(getIt(), getIt()),
     );
     getIt.registerLazySingleton<UploadService>(
-      () => UploadService(getIt()),
+      () => UploadService(getIt(), getIt()),
     );
   }
 }

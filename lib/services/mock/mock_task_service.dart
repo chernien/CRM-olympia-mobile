@@ -8,7 +8,7 @@ class MockTaskService extends TaskService {
   final List<TaskModel> _tasks = List.from(MockData.tasks);
   int _counter = MockData.tasks.length;
 
-  MockTaskService(super.dioClient);
+  MockTaskService(super.dioClient, super.networkInfo);
 
   @override
   Future<Either<Failure, List<TaskModel>>> getTasks({
@@ -17,15 +17,12 @@ class MockTaskService extends TaskService {
     String? statut,
   }) async {
     await Future.delayed(const Duration(milliseconds: 600));
-
     var filtered = _tasks.toList();
     if (statut != null) {
       filtered = filtered.where((t) => t.statut == statut).toList();
     }
-
     final start = (page - 1) * pageSize;
     if (start >= filtered.length) return const Right([]);
-
     final end = start + pageSize;
     return Right(filtered.sublist(start, end.clamp(0, filtered.length)));
   }
@@ -33,7 +30,6 @@ class MockTaskService extends TaskService {
   @override
   Future<Either<Failure, TaskModel>> createTask(TaskModel task) async {
     await Future.delayed(const Duration(milliseconds: 800));
-
     _counter++;
     final newTask = TaskModel(
       id: 'tsk-${_counter.toString().padLeft(3, '0')}',
@@ -59,12 +55,10 @@ class MockTaskService extends TaskService {
     String statut,
   ) async {
     await Future.delayed(const Duration(milliseconds: 500));
-
     final index = _tasks.indexWhere((t) => t.id == taskId);
     if (index == -1) {
       return const Left(ServerFailure(message: 'Tâche introuvable', statusCode: 404));
     }
-
     final old = _tasks[index];
     final updated = TaskModel(
       id: old.id,
@@ -83,5 +77,27 @@ class MockTaskService extends TaskService {
     );
     _tasks[index] = updated;
     return Right(updated);
+  }
+
+  @override
+  Future<Either<Failure, TaskModel>> getTaskById(String id) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      final task = _tasks.firstWhere((t) => t.id == id);
+      return Right(task);
+    } catch (_) {
+      return const Left(ServerFailure(message: 'Tâche introuvable', statusCode: 404));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteTask(String id) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    final index = _tasks.indexWhere((t) => t.id == id);
+    if (index == -1) {
+      return const Left(ServerFailure(message: 'Tâche introuvable', statusCode: 404));
+    }
+    _tasks.removeAt(index);
+    return const Right(null);
   }
 }

@@ -49,7 +49,7 @@ DemandeHistorique _$DemandeHistoriqueFromJson(Map<String, dynamic> json) =>
     DemandeHistorique(
       action: json['action'] as String,
       auteur: json['auteur'] as String?,
-      date: DateTime.parse(json['date'] as String),
+      date: DateTime.parse(json['dateAction'] as String),
       commentaire: json['commentaire'] as String?,
     );
 
@@ -57,6 +57,6 @@ Map<String, dynamic> _$DemandeHistoriqueToJson(DemandeHistorique instance) =>
     <String, dynamic>{
       'action': instance.action,
       'auteur': instance.auteur,
-      'date': instance.date.toIso8601String(),
+      'dateAction': instance.date.toIso8601String(),
       'commentaire': instance.commentaire,
     };
