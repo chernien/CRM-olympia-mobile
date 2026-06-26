@@ -21,9 +21,13 @@ class AuthService {
         data: {'email': email, 'password': password},
       );
 
-      final token = response.data['token'] as String;
-      final refreshToken = response.data['refreshToken'] as String;
-      final user = UserModel.fromJson(response.data['user']);
+      // Backend wraps payloads in an envelope: { "data": { ... } }.
+      // LoginResponse = { accessToken, refreshToken, expiresIn, user }.
+      final body = (response.data['data'] ?? response.data) as Map<String, dynamic>;
+
+      final token = body['accessToken'] as String;
+      final refreshToken = body['refreshToken'] as String;
+      final user = _userFromBackend(body['user'] as Map<String, dynamic>);
 
       await _secureStorage.write(key: AppConstants.tokenKey, value: token);
       await _secureStorage.write(key: AppConstants.refreshTokenKey, value: refreshToken);
@@ -35,6 +39,16 @@ class AuthService {
     } catch (e) {
       return Left(AuthFailure(message: 'Erreur de connexion: ${e.toString()}'));
     }
+  }
+
+  /// Maps the backend UserDto onto [UserModel]. The backend sends the role in
+  /// PascalCase ("Admin"/"Commercial"); the app compares it lowercase, so we
+  /// normalize here before deserializing (and before caching it).
+  UserModel _userFromBackend(Map<String, dynamic> json) {
+    final normalized = Map<String, dynamic>.from(json);
+    final role = normalized['role'];
+    if (role is String) normalized['role'] = role.toLowerCase();
+    return UserModel.fromJson(normalized);
   }
 
   Future<Either<Failure, UserModel>> getCurrentUser() async {

@@ -1,0 +1,11 @@
+{
+  "name": "olympia-root",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix olympia_admin run dev",
+    "build": "npm --prefix olympia_admin run build",
+    "preview": "npm --prefix olympia_admin run preview",
+    "lint": "npm --prefix olympia_admin run lint",
+    "admin:install": "npm --prefix olympia_admin install"
+  }
+}

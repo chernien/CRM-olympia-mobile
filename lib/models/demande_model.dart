@@ -61,6 +61,8 @@ class DemandeModel extends Equatable {
 class DemandeHistorique extends Equatable {
   final String action;
   final String? auteur;
+  // Backend serializes this field as "dateAction" (DemandeHistoriqueDto).
+  @JsonKey(name: 'dateAction')
   final DateTime date;
   final String? commentaire;
 

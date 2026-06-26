@@ -44,7 +44,7 @@ class _DashboardViewState extends ConsumerState<DashboardView>
           mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset(
-              'assets/images/logo.png',
+              'assets/images/logo-360.png',
               height: 38.h,
             ),
             SizedBox(width: 12.w),
@@ -63,7 +63,7 @@ class _DashboardViewState extends ConsumerState<DashboardView>
                   ),
                 ),
                 Text(
-                  'PAINTURE',
+                  'PEINTURE',
                   style: TextStyle(
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w600,

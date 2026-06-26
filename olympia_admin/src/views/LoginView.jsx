@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Lock, Mail, ArrowRight, Shield } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, ArrowRight, TrendingUp, CheckCircle2, Users } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.jsx';
 
-const LoginView = ({ onLogin }) => {
+const LoginView = () => {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -17,13 +19,8 @@ const LoginView = ({ onLogin }) => {
       return;
     }
     setIsLoading(true);
-    // Simulate API call
-    await new Promise(r => setTimeout(r, 1200));
-    if (email === 'admin@olympia.com' && password === 'admin123') {
-      onLogin?.();
-    } else {
-      setError('Email ou mot de passe incorrect.');
-    }
+    const { error: err } = await login(email, password);
+    if (err) setError(err.message);
     setIsLoading(false);
   };
 
@@ -40,10 +37,8 @@ const LoginView = ({ onLogin }) => {
 
         {/* Logo */}
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-            <Shield size={20} className="text-white" />
-          </div>
-          <span className="text-2xl font-black italic tracking-tighter text-white">Olympia</span>
+          <img src="/logo-360.png" alt="Olympia 360" className="w-12 h-12 rounded-xl bg-white p-1 shadow-lg" />
+          <span className="text-2xl font-black italic tracking-tighter text-white">Olympia 360</span>
         </div>
 
         {/* Center Content */}
@@ -62,16 +57,16 @@ const LoginView = ({ onLogin }) => {
             </p>
           </div>
 
-          {/* Stats preview */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* Feature highlights */}
+          <div className="flex flex-col gap-3">
             {[
-              { label: 'CA ce mois', value: '125K', unit: 'MAD' },
-              { label: 'Demandes', value: '24', unit: 'actives' },
-              { label: 'Commerciaux', value: '8', unit: 'actifs' },
-            ].map((stat, i) => (
-              <div key={i} className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-                <p className="text-white text-xl font-black">{stat.value}<span className="text-xs font-normal text-white/60 ml-1">{stat.unit}</span></p>
-                <p className="text-white/50 text-[10px] font-bold uppercase tracking-widest mt-1">{stat.label}</p>
+              { icon: <TrendingUp size={16} />, label: 'Suivi du chiffre d\'affaires en temps réel' },
+              { icon: <CheckCircle2 size={16} />, label: 'Validation des demandes commerciales' },
+              { icon: <Users size={16} />, label: 'Pilotage de l\'équipe terrain' },
+            ].map((feat, i) => (
+              <div key={i} className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/10">
+                <span className="text-white/80 shrink-0">{feat.icon}</span>
+                <span className="text-white/80 text-sm font-medium">{feat.label}</span>
               </div>
             ))}
           </div>
@@ -79,7 +74,7 @@ const LoginView = ({ onLogin }) => {
 
         {/* Footer */}
         <div className="relative z-10">
-          <p className="text-white/30 text-xs font-medium">© 2024 Olympia. Plateforme B2B Commerciale.</p>
+          <p className="text-white/30 text-xs font-medium">© 2026 Olympia 360. Plateforme B2B commerciale.</p>
         </div>
       </div>
 
@@ -87,10 +82,8 @@ const LoginView = ({ onLogin }) => {
       <div className="flex-1 flex flex-col items-center justify-center px-6 lg:px-16">
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-3 mb-12">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-            <Shield size={20} className="text-white" />
-          </div>
-          <span className="text-2xl font-black italic tracking-tighter text-primary">Olympia</span>
+          <img src="/logo-360.png" alt="Olympia 360" className="w-10 h-10 rounded-xl" />
+          <span className="text-2xl font-black italic tracking-tighter text-primary">Olympia 360</span>
         </div>
 
         <div className="w-full max-w-[420px]">
@@ -201,10 +194,10 @@ const LoginView = ({ onLogin }) => {
           <div className="mt-8 p-4 bg-slate-50 rounded-xl border border-slate-100">
             <p className="text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-2">Accès démo</p>
             <p className="text-xs font-medium text-text-secondary">
-              Email: <span className="font-bold text-text-primary">admin@olympia.com</span>
+              Email: <span className="font-bold text-text-primary">admin@olympia.ma</span>
             </p>
             <p className="text-xs font-medium text-text-secondary mt-1">
-              Mot de passe: <span className="font-bold text-text-primary">admin123</span>
+              Mot de passe: <span className="font-bold text-text-primary">Admin@12345</span>
             </p>
           </div>
         </div>

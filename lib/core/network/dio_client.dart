@@ -10,9 +10,6 @@ import '../errors/exceptions.dart';
 class DioClient {
   late final Dio _dio;
 
-  /// Dedicated Dio instance for token refresh — avoids re-using the main
-  /// instance (which has auth interceptors that would cause infinite loops)
-  /// and guarantees a fixed short timeout independent of the main config.
   final Dio _refreshDio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 10),
@@ -22,16 +19,23 @@ class DioClient {
 
   final FlutterSecureStorage _secureStorage;
 
-  /// Lock that prevents concurrent token refresh calls.
-  /// All 401-retry callers await the same in-flight refresh future.
   Completer<bool>? _refreshCompleter;
+
+  /// Broadcast stream — emits one event whenever the session expires
+  /// (i.e., token refresh failed and tokens have been cleared).
+  final StreamController<void> _sessionExpiredController =
+      StreamController<void>.broadcast();
+
+  Stream<void> get sessionExpired => _sessionExpiredController.stream;
 
   DioClient(this._secureStorage) {
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.baseUrl,
-        connectTimeout: const Duration(milliseconds: ApiConstants.connectTimeout),
-        receiveTimeout: const Duration(milliseconds: ApiConstants.receiveTimeout),
+        connectTimeout:
+            const Duration(milliseconds: ApiConstants.connectTimeout),
+        receiveTimeout:
+            const Duration(milliseconds: ApiConstants.receiveTimeout),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -41,7 +45,6 @@ class DioClient {
 
     _dio.interceptors.add(_authInterceptor());
 
-    // Only log in debug/dev — never ship token/body logs to production.
     if (AppConfig.enableNetworkLogs) {
       _dio.interceptors.add(
         LogInterceptor(requestBody: true, responseBody: true),
@@ -54,7 +57,8 @@ class DioClient {
   InterceptorsWrapper _authInterceptor() {
     return InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await _secureStorage.read(key: AppConstants.tokenKey);
+        final token =
+            await _secureStorage.read(key: AppConstants.tokenKey);
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
@@ -66,12 +70,17 @@ class DioClient {
           if (refreshed) {
             final token =
                 await _secureStorage.read(key: AppConstants.tokenKey);
-            error.requestOptions.headers['Authorization'] = 'Bearer $token';
-            final response = await _dio.fetch(error.requestOptions);
+            error.requestOptions.headers['Authorization'] =
+                'Bearer $token';
+            final response =
+                await _dio.fetch(error.requestOptions);
             return handler.resolve(response);
           } else {
             await _secureStorage.delete(key: AppConstants.tokenKey);
-            await _secureStorage.delete(key: AppConstants.refreshTokenKey);
+            await _secureStorage
+                .delete(key: AppConstants.refreshTokenKey);
+            // Signal to all listeners (AuthNotifier) that the session ended.
+            _sessionExpiredController.add(null);
           }
         }
         handler.next(error);
@@ -79,13 +88,7 @@ class DioClient {
     );
   }
 
-  /// Refresh the JWT access token.
-  ///
-  /// Uses a [Completer] lock so that concurrent 401 errors all wait for the
-  /// same in-flight refresh rather than each firing a separate request (which
-  /// would invalidate each other's refresh tokens).
   Future<bool> _refreshToken() async {
-    // If a refresh is already in progress, piggy-back on it.
     if (_refreshCompleter != null) return _refreshCompleter!.future;
 
     final completer = Completer<bool>();
@@ -105,13 +108,16 @@ class DioClient {
       );
 
       if (response.statusCode == 200) {
+        // Same envelope as /login: { "data": { accessToken, refreshToken, ... } }.
+        final body =
+            (response.data['data'] ?? response.data) as Map<String, dynamic>;
         await _secureStorage.write(
           key: AppConstants.tokenKey,
-          value: response.data['token'] as String,
+          value: body['accessToken'] as String,
         );
         await _secureStorage.write(
           key: AppConstants.refreshTokenKey,
-          value: response.data['refreshToken'] as String,
+          value: body['refreshToken'] as String,
         );
         completer.complete(true);
         return true;
@@ -123,7 +129,6 @@ class DioClient {
       completer.complete(false);
       return false;
     } finally {
-      // Clear the lock so the next failure triggers a fresh refresh attempt.
       _refreshCompleter = null;
     }
   }
@@ -163,9 +168,10 @@ class DioClient {
     }
   }
 
-  Future<Response> delete(String path) async {
+  /// [data] is optional — pass it for soft-delete or batch-delete endpoints.
+  Future<Response> delete(String path, {dynamic data}) async {
     try {
-      return await _dio.delete(path);
+      return await _dio.delete(path, data: data);
     } on DioException catch (e) {
       throw _handleDioError(e);
     }
@@ -186,17 +192,33 @@ class DioClient {
     }
   }
 
+  void dispose() {
+    _sessionExpiredController.close();
+  }
+
   ServerException _handleDioError(DioException error) {
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        return const ServerException(message: 'Délai de connexion dépassé');
+        return const ServerException(
+            message: 'Délai de connexion dépassé');
       case DioExceptionType.badResponse:
         final statusCode = error.response?.statusCode;
-        final message = error.response?.data?['message'] as String? ??
-            'Erreur serveur';
-        return ServerException(message: message, statusCode: statusCode);
+        // Backend error envelope: { "error": { "message", "code", ... } }.
+        // Fall back to a flat "message" or a sane default.
+        final data = error.response?.data;
+        String? message;
+        if (data is Map) {
+          final err = data['error'];
+          if (err is Map && err['message'] is String) {
+            message = err['message'] as String;
+          } else if (data['message'] is String) {
+            message = data['message'] as String;
+          }
+        }
+        return ServerException(
+            message: message ?? 'Erreur serveur', statusCode: statusCode);
       case DioExceptionType.connectionError:
         return const ServerException(
             message: 'Erreur de connexion au serveur');

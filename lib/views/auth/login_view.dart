@@ -111,7 +111,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                   Hero(
                     tag: 'olympia_logo',
                     child: Image.asset(
-                      'assets/images/logo.png',
+                      'assets/images/logo-360.png',
                       height: 100.h, // Adjusted height for clear visibility
                     ),
                   ),

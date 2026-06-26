@@ -5,7 +5,7 @@ import '../dashboard_service.dart';
 import 'mock_data.dart';
 
 class MockDashboardService extends DashboardService {
-  MockDashboardService(super.dioClient);
+  MockDashboardService(super.dioClient, super.networkInfo);
 
   @override
   Future<Either<Failure, CAData>> getCaMensuel({int? mois, int? annee}) async {
