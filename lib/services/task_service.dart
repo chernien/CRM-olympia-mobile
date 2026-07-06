@@ -41,8 +41,8 @@ class TaskService {
   Future<Either<Failure, TaskModel>> createTask(TaskModel task) async {
     if (!await _networkInfo.isConnected) return const Left(NetworkFailure());
     try {
-      // CreateTacheRequest: server sets statut/numero/commercialId. datePrevue
-      // must be a date-only string ("yyyy-MM-dd") for the backend's DateOnly.
+      // CreateTacheRequest: server sets statut (realisee), numero, commercialId
+      // and the date (= creation time). The task must reference a task objective.
       final response = await _dioClient.post(
         ApiConstants.taches,
         data: {
@@ -50,8 +50,7 @@ class TaskService {
           'nomClient': task.nomClient,
           'adresse': task.adresse,
           'description': task.description,
-          'datePrevue': task.datePrevue.toIso8601String().split('T').first,
-          'priorite': task.priorite,
+          'objectifId': task.objectifId,
           'pieceJointeUrl': task.pieceJointeUrl,
         },
       );

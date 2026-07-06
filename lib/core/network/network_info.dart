@@ -1,21 +1,18 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:internet_connection_checker/internet_connection_checker.dart';
-
 abstract class NetworkInfo {
   Future<bool> get isConnected;
 }
 
 class NetworkInfoImpl implements NetworkInfo {
-  final InternetConnectionChecker _connectionChecker;
-
-  NetworkInfoImpl(this._connectionChecker);
+  NetworkInfoImpl();
 
   @override
   Future<bool> get isConnected async {
-    // internet_connection_checker relies on dart:io sockets and isn't supported
-    // on web — the browser handles connectivity, and DioClient already surfaces
-    // real connection errors with a friendly message.
-    if (kIsWeb) return true;
-    return _connectionChecker.hasConnection;
+    // We do NOT pre-flight connectivity by pinging public DNS hosts: during USB
+    // debugging the phone reaches the backend through an `adb reverse` tunnel
+    // (localhost:5000 → PC), and often has no WiFi/mobile data at all — a public
+    // ping would falsely report "offline" and block every request even though
+    // the backend is reachable. Real connection failures are surfaced by
+    // DioClient with a friendly message ("Erreur de connexion au serveur").
+    return true;
   }
 }

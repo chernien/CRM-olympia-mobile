@@ -16,7 +16,6 @@ class ProfileView extends ConsumerWidget {
     final name = user?.fullName ?? 'Utilisateur';
     final roleLabel = user?.role == 'admin' ? 'Administrateur' : 'Commercial';
     final email = user?.email ?? 'Non renseigné';
-    final zone = user?.zone ?? 'Non définie';
     final objectifCA = user?.objectifCA;
     final initials = user != null && user.prenom.isNotEmpty && user.nom.isNotEmpty
         ? '${user.prenom[0]}${user.nom[0]}'.toUpperCase()
@@ -67,8 +66,7 @@ class ProfileView extends ConsumerWidget {
                     alignment: WrapAlignment.center,
                     children: [
                       _buildDetailPill(Icons.work_outline, roleLabel),
-                      _buildDetailPill(Icons.location_on_outlined, zone),
-                      if (objectifCA != null) _buildDetailPill(Icons.trending_up, '${objectifCA.toStringAsFixed(0)} €'),
+                      if (objectifCA != null) _buildDetailPill(Icons.trending_up, '${objectifCA.toStringAsFixed(0)} TND'),
                     ],
                   ),
                 ],
@@ -90,11 +88,9 @@ class ProfileView extends ConsumerWidget {
                   _buildInfoRow(Icons.email_outlined, 'Email', email),
                   _buildDivider(),
                   _buildInfoRow(Icons.badge_outlined, 'Rôle', roleLabel),
-                  _buildDivider(),
-                  _buildInfoRow(Icons.map_outlined, 'Zone', zone),
                   if (objectifCA != null) ...[
                     _buildDivider(),
-                    _buildInfoRow(Icons.trending_up, 'Objectif CA', '${objectifCA.toStringAsFixed(0)} €'),
+                    _buildInfoRow(Icons.trending_up, 'Objectif CA', '${objectifCA.toStringAsFixed(0)} TND'),
                   ],
                 ],
               ),

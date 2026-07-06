@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/routing/route_names.dart';
 import '../../core/theme/app_colors.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 
 /// Branded animated splash. Shown first (right after the native splash hands
 /// off), it plays a short logo reveal then routes to onboarding or login.
 ///
 /// The logo is wrapped in a [Hero] (`olympia_logo`) shared with the login and
 /// dashboard, so it glides smoothly into the next screen instead of cutting.
-class SplashView extends StatefulWidget {
+class SplashView extends ConsumerStatefulWidget {
   const SplashView({super.key});
 
   @override
-  State<SplashView> createState() => _SplashViewState();
+  ConsumerState<SplashView> createState() => _SplashViewState();
 }
 
-class _SplashViewState extends State<SplashView>
+class _SplashViewState extends ConsumerState<SplashView>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _logoFade;
@@ -70,13 +72,24 @@ class _SplashViewState extends State<SplashView>
     final prefs = await SharedPreferences.getInstance();
     final onboardingSeen = prefs.getBool('onboarding_seen') ?? false;
 
-    // Respect the minimum display time even if prefs resolve instantly.
+    // Restore a previous session from the stored tokens (no network call — works
+    // offline). If an access token is present, the user goes straight to the
+    // dashboard; the Dio interceptor silently refreshes it via the refresh token
+    // on the first API call, and only falls back to /login if that refresh fails.
+    await ref.read(authProvider.notifier).checkAuth();
+    final isAuthenticated = ref.read(authProvider).isAuthenticated;
+
+    // Respect the minimum display time even if everything resolves instantly.
     final elapsed = DateTime.now().difference(started);
     final remaining = _minDisplay - elapsed;
     if (remaining > Duration.zero) await Future.delayed(remaining);
 
     if (!mounted) return;
-    context.go(onboardingSeen ? RouteNames.login : RouteNames.onboarding);
+    if (isAuthenticated) {
+      context.go(RouteNames.dashboard);
+    } else {
+      context.go(onboardingSeen ? RouteNames.login : RouteNames.onboarding);
+    }
   }
 
   @override

@@ -5,6 +5,7 @@ import '../core/errors/exceptions.dart';
 import '../core/network/dio_client.dart';
 import '../core/network/network_info.dart';
 import '../models/dashboard_model.dart';
+import '../models/objectif_progress.dart';
 
 /// Simple in-memory cache entry with a configurable TTL.
 class _Cached<T> {
@@ -87,6 +88,34 @@ class DashboardService {
           trimestreEnCours: _toInt(q['taches']),
           enCoursDeTraitement: _toInt(m['tachesEnCours']),
         ));
+  }
+
+  /// CA objectives (admin-set) with the current commercial's attainment (%).
+  Future<Either<Failure, List<ObjectifProgress>>> getObjectifsProgress() async {
+    if (!await _networkInfo.isConnected) return const Left(NetworkFailure());
+    try {
+      final response = await _dioClient.get(ApiConstants.objectifsProgress);
+      final list = (response.data['data'] ?? response.data) as List;
+      return Right(list
+          .map((e) => ObjectifProgress.fromJson(e as Map<String, dynamic>))
+          .toList());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur de données: $e'));
+    }
+  }
+
+  /// Marks an objective's congratulations as shown for the current user.
+  /// Server-side and idempotent — the popup never comes back, on any device.
+  Future<void> markObjectifCelebrated(String objectifId) async {
+    try {
+      await _dioClient.post(
+        ApiConstants.objectifCelebrate.replaceFirst('{id}', objectifId),
+      );
+    } catch (_) {
+      // Non-fatal: worst case the popup shows once more; never block the UI.
+    }
   }
 
   // ─── Core fetch (cached + deduped per period) ────────────────────

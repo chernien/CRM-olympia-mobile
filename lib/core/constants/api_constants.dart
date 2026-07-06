@@ -37,6 +37,10 @@ class ApiConstants {
   static const String clients = '/clients';
   static const String clientSearch = '/clients/search';
 
+  // Objectifs (attainment for the current commercial)
+  static const String objectifsProgress = '/objectifs/progress';
+  static const String objectifCelebrate = '/objectifs/{id}/celebrate';
+
   // Upload
   static const String upload = '/upload';
 

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/service_providers.dart';
 import '../core/constants/app_constants.dart';
 import '../core/errors/failures.dart';
+import '../models/objectif_progress.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 
@@ -149,3 +150,14 @@ class TaskListNotifier extends Notifier<TaskListState> {
 
 final taskListProvider =
     NotifierProvider<TaskListNotifier, TaskListState>(TaskListNotifier.new);
+
+/// Task-type objectives (set by the admin) — feed the "objectif" dropdown when
+/// a commercial creates a task. Reuses the objectives-progress endpoint.
+final taskObjectifsProvider = FutureProvider<List<ObjectifProgress>>((ref) async {
+  final service = ref.read(dashboardServiceProvider);
+  final res = await service.getObjectifsProgress();
+  return res.fold(
+    (_) => <ObjectifProgress>[],
+    (list) => list.where((o) => o.type == 'tache').toList(),
+  );
+});

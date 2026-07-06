@@ -138,7 +138,7 @@ class _DemandeNouveauClientFormState extends ConsumerState<DemandeNouveauClientF
       SizedBox(height: 14.h),
       AppTextField(
         controller: _potentielController,
-        hint: 'Potentiel estimé (MAD)',
+        hint: 'Potentiel estimé (TND)',
         prefixIcon: Icons.trending_up_outlined,
         accentColor: _color,
         keyboardType: TextInputType.number,

@@ -1,21 +1,13 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
-import 'package:internet_connection_checker/internet_connection_checker.dart';
 import '../network/dio_client.dart';
 import '../network/network_info.dart';
-import 'app_config.dart';
 import '../../services/auth_service.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/task_service.dart';
 import '../../services/demande_service.dart';
 import '../../services/client_service.dart';
 import '../../services/upload_service.dart';
-import '../../services/mock/mock_auth_service.dart';
-import '../../services/mock/mock_dashboard_service.dart';
-import '../../services/mock/mock_task_service.dart';
-import '../../services/mock/mock_demande_service.dart';
-import '../../services/mock/mock_client_service.dart';
-import '../../services/mock/mock_upload_service.dart';
 import '../../services/notification_service.dart';
 
 final getIt = GetIt.instance;
@@ -26,64 +18,34 @@ Future<void> configureDependencies() async {
     () => const FlutterSecureStorage(),
   );
 
-  // NetworkInfo is always registered — needed in all modes.
-  getIt.registerLazySingleton<InternetConnectionChecker>(
-    () => InternetConnectionChecker.instance,
-  );
   getIt.registerLazySingleton<NetworkInfo>(
-    () => NetworkInfoImpl(getIt()),
+    () => NetworkInfoImpl(),
   );
   getIt.registerLazySingleton<NotificationService>(
     () => NotificationService(),
   );
 
-  // DioClient is identical in all modes (its baseUrl/interceptors are static).
   getIt.registerLazySingleton<DioClient>(
     () => DioClient(getIt()),
   );
 
-  // ─── AUTH ──────────────────────────────────────────────────────
-  // Auth is wired to the real backend and toggled independently of the data
-  // mocks, so login works against the API even while other features are mocked.
+  // ─── Services (all wired to the real .NET backend) ─────────────
   getIt.registerLazySingleton<AuthService>(
-    () => AppConfig.useMockAuth
-        ? MockAuthService(getIt(), getIt())
-        : AuthService(getIt(), getIt()),
+    () => AuthService(getIt(), getIt()),
   );
-
-  if (AppConfig.useMockData) {
-    // ─── MOCK DATA ─────────────────────────────────────────────
-    getIt.registerLazySingleton<DashboardService>(
-      () => MockDashboardService(getIt(), getIt()),
-    );
-    getIt.registerLazySingleton<TaskService>(
-      () => MockTaskService(getIt(), getIt()),
-    );
-    getIt.registerLazySingleton<DemandeService>(
-      () => MockDemandeService(getIt(), getIt()),
-    );
-    getIt.registerLazySingleton<ClientService>(
-      () => MockClientService(getIt(), getIt()),
-    );
-    getIt.registerLazySingleton<UploadService>(
-      () => MockUploadService(getIt(), getIt()),
-    );
-  } else {
-    // ─── REAL API DATA ─────────────────────────────────────────
-    getIt.registerLazySingleton<DashboardService>(
-      () => DashboardService(getIt(), getIt()),
-    );
-    getIt.registerLazySingleton<TaskService>(
-      () => TaskService(getIt(), getIt()),
-    );
-    getIt.registerLazySingleton<DemandeService>(
-      () => DemandeService(getIt(), getIt()),
-    );
-    getIt.registerLazySingleton<ClientService>(
-      () => ClientService(getIt(), getIt()),
-    );
-    getIt.registerLazySingleton<UploadService>(
-      () => UploadService(getIt(), getIt()),
-    );
-  }
+  getIt.registerLazySingleton<DashboardService>(
+    () => DashboardService(getIt(), getIt()),
+  );
+  getIt.registerLazySingleton<TaskService>(
+    () => TaskService(getIt(), getIt()),
+  );
+  getIt.registerLazySingleton<DemandeService>(
+    () => DemandeService(getIt(), getIt()),
+  );
+  getIt.registerLazySingleton<ClientService>(
+    () => ClientService(getIt(), getIt()),
+  );
+  getIt.registerLazySingleton<UploadService>(
+    () => UploadService(getIt(), getIt()),
+  );
 }

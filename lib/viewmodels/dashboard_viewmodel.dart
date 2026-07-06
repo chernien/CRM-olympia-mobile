@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/service_providers.dart';
 import '../core/errors/failures.dart';
 import '../models/dashboard_model.dart';
+import '../models/objectif_progress.dart';
 import '../services/dashboard_service.dart';
 
 enum PeriodType { mensuel, trimestriel }
@@ -14,6 +15,7 @@ class DashboardState {
   final PeriodType selectedPeriod;
   final bool isLoading;
   final Failure? error;
+  final List<ObjectifProgress> objectifs;
 
   const DashboardState({
     this.caMensuel,
@@ -23,6 +25,7 @@ class DashboardState {
     this.selectedPeriod = PeriodType.mensuel,
     this.isLoading = false,
     this.error,
+    this.objectifs = const [],
   });
 
   /// True only on the very first load (no data in hand yet).
@@ -36,6 +39,7 @@ class DashboardState {
     PeriodType? selectedPeriod,
     bool? isLoading,
     Failure? error,
+    List<ObjectifProgress>? objectifs,
   }) {
     return DashboardState(
       caMensuel: caMensuel ?? this.caMensuel,
@@ -45,6 +49,7 @@ class DashboardState {
       selectedPeriod: selectedPeriod ?? this.selectedPeriod,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      objectifs: objectifs ?? this.objectifs,
     );
   }
 }
@@ -92,11 +97,41 @@ class DashboardNotifier extends Notifier<DashboardState> {
       selectedPeriod: state.selectedPeriod,
       isLoading: false,
       error: error,
+      objectifs: state.objectifs,
     );
+
+    // Load the commercial's objective attainment (independent — never blocks the dashboard).
+    final objRes = await _dashboardService.getObjectifsProgress();
+    objRes.fold((_) {}, (list) => state = state.copyWith(objectifs: list));
   }
 
   void selectPeriod(PeriodType period) {
     state = state.copyWith(selectedPeriod: period);
+  }
+
+  /// Marks an objective's congratulations as shown (server-side, idempotent)
+  /// and reflects it locally so the popup can't re-fire within this session.
+  void markCelebrated(String objectifId) {
+    _dashboardService.markObjectifCelebrated(objectifId);
+    state = state.copyWith(
+      objectifs: [
+        for (final o in state.objectifs)
+          if (o.id == objectifId)
+            ObjectifProgress(
+              id: o.id,
+              type: o.type,
+              titre: o.titre,
+              valeur: o.valeur,
+              description: o.description,
+              periode: o.periode,
+              caRealise: o.caRealise,
+              pct: o.pct,
+              celebrated: true,
+            )
+          else
+            o,
+      ],
+    );
   }
 }
 

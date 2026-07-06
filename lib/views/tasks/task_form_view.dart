@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/task_model.dart';
 import '../../viewmodels/task_viewmodel.dart';
@@ -22,20 +21,8 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
   final _nomClientController = TextEditingController();
   final _adresseController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _datePrevueController = TextEditingController();
-  DateTime _datePrevue = DateTime.now().add(const Duration(days: 1));
 
-  // Uses AppConstants so it stays in sync with status badge + filter logic.
-  String _priorite = AppConstants.priorityNormale;
-
-  String _formatDate(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-
-  @override
-  void initState() {
-    super.initState();
-    _datePrevueController.text = _formatDate(_datePrevue);
-  }
+  String? _objectifId; // selected task objective (required)
 
   @override
   void dispose() {
@@ -43,12 +30,19 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
     _nomClientController.dispose();
     _adresseController.dispose();
     _descriptionController.dispose();
-    _datePrevueController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_objectifId == null) {
+      Fluttertoast.showToast(
+        msg: 'Veuillez sélectionner un objectif',
+        backgroundColor: AppColors.error,
+        textColor: Colors.white,
+      );
+      return;
+    }
 
     final task = TaskModel(
       codeClient: _codeClientController.text.trim(),
@@ -57,16 +51,14 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
           ? null
           : _adresseController.text.trim(),
       description: _descriptionController.text.trim(),
-      datePrevue: _datePrevue,
-      priorite: _priorite,
+      objectifId: _objectifId,
     );
 
-    final success =
-        await ref.read(taskListProvider.notifier).createTask(task);
+    final success = await ref.read(taskListProvider.notifier).createTask(task);
 
     if (success && mounted) {
       Fluttertoast.showToast(
-        msg: 'Tâche créée avec succès',
+        msg: 'Tâche enregistrée (réalisée)',
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
         timeInSecForIosWeb: 1,
@@ -80,10 +72,10 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
 
   @override
   Widget build(BuildContext context) {
-    // isSubmitting drives the button spinner — does NOT affect the list loading state.
     final isSubmitting =
         ref.watch(taskListProvider.select((s) => s.isSubmitting));
     final error = ref.watch(taskListProvider.select((s) => s.error));
+    final objectifsAsync = ref.watch(taskObjectifsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Nouvelle Tâche')),
@@ -94,8 +86,7 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  padding:
-                      EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
+                  padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 24.h),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -119,67 +110,73 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
                       SizedBox(height: 14.h),
                       AppTextField(
                         controller: _adresseController,
-                        hint: 'Adresse',
+                        hint: 'Adresse (optionnel)',
                         prefixIcon: Icons.location_on_outlined,
                       ),
                       SizedBox(height: 14.h),
                       AppTextField(
                         controller: _descriptionController,
-                        hint: 'Description',
+                        hint: 'Description (optionnel)',
                         maxLines: 4,
-                        required: true,
-                        requiredMessage:
-                            'Veuillez renseigner la description',
                       ),
                       SizedBox(height: 14.h),
-                      AppDateField(
-                        controller: _datePrevueController,
-                        hint: 'Date prévue',
-                        prefixIcon: Icons.calendar_today_outlined,
-                        required: true,
-                        requiredMessage:
-                            'Veuillez sélectionner la date prévue',
-                        onTap: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate: _datePrevue,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now()
-                                .add(const Duration(days: 365)),
-                          );
-                          if (date != null) {
-                            setState(() {
-                              _datePrevue = date;
-                              _datePrevueController.text =
-                                  _formatDate(date);
-                            });
+                      // Objectif selector (task-type objectives set by the admin).
+                      objectifsAsync.when(
+                        loading: () => Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12.h),
+                          child: const Center(
+                              child: CircularProgressIndicator()),
+                        ),
+                        error: (e, s) => _objectifBanner(
+                          'Impossible de charger les objectifs. Réessayez.',
+                          AppColors.error,
+                        ),
+                        data: (objectifs) {
+                          if (objectifs.isEmpty) {
+                            return _objectifBanner(
+                              "Aucun objectif de type tâche n'a été défini par "
+                              "l'administrateur. Impossible de créer une tâche.",
+                              AppColors.warning,
+                            );
                           }
+                          return AppDropdownField<String>(
+                            value: _objectifId,
+                            hint: 'Objectif (ex. Visite client)',
+                            prefixIcon: Icons.flag_outlined,
+                            requiredMessage:
+                                'Veuillez sélectionner un objectif',
+                            items: objectifs
+                                .map((o) => DropdownMenuItem(
+                                      value: o.id,
+                                      child: Text(
+                                        o.titre.isNotEmpty
+                                            ? o.titre
+                                            : 'Objectif ${o.isMensuel ? "mensuel" : "trimestriel"}',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ))
+                                .toList(),
+                            onChanged: (v) => setState(() => _objectifId = v),
+                          );
                         },
                       ),
-                      SizedBox(height: 14.h),
-                      AppDropdownField<String>(
-                        value: _priorite,
-                        hint: 'Priorité',
-                        prefixIcon: Icons.flag_outlined,
-                        requiredMessage:
-                            'Veuillez sélectionner la priorité',
-                        items: const [
-                          DropdownMenuItem(
-                            value: AppConstants.priorityNormale,
-                            child: Text('Normale'),
-                          ),
-                          DropdownMenuItem(
-                            value: AppConstants.priorityHaute,
-                            child: Text('Haute'),
-                          ),
-                          DropdownMenuItem(
-                            value: AppConstants.priorityUrgente,
-                            child: Text('Urgente'),
+                      SizedBox(height: 12.h),
+                      // Info: the task date is its creation time; auto "realisée".
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded,
+                              size: 15.r, color: AppColors.textSecondary),
+                          SizedBox(width: 8.w),
+                          Expanded(
+                            child: Text(
+                              'La date de la tâche est sa date de création. '
+                              'Elle est automatiquement marquée « Réalisée ».',
+                              style: TextStyle(
+                                  fontSize: 11.sp,
+                                  color: AppColors.textSecondary),
+                            ),
                           ),
                         ],
-                        onChanged: (v) {
-                          if (v != null) setState(() => _priorite = v);
-                        },
                       ),
                       if (error != null) ...[
                         SizedBox(height: 16.h),
@@ -192,9 +189,7 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
                               child: Text(
                                 error.message,
                                 style: TextStyle(
-                                  color: AppColors.error,
-                                  fontSize: 13.sp,
-                                ),
+                                    color: AppColors.error, fontSize: 13.sp),
                               ),
                             ),
                           ],
@@ -232,7 +227,7 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
                               ),
                             )
                           : Text(
-                              'Soumettre la tâche',
+                              'Enregistrer la tâche',
                               style: TextStyle(
                                 fontSize: 15.sp,
                                 fontWeight: FontWeight.w700,
@@ -247,6 +242,27 @@ class _TaskFormViewState extends ConsumerState<TaskFormView> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _objectifBanner(String message, Color color) {
+    return Container(
+      padding: EdgeInsets.all(12.r),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, color: color, size: 18.r),
+          SizedBox(width: 10.w),
+          Expanded(
+            child: Text(message,
+                style: TextStyle(fontSize: 12.sp, color: color)),
+          ),
+        ],
       ),
     );
   }

@@ -326,7 +326,8 @@ class _TaskCard extends StatelessWidget {
   const _TaskCard({super.key, required this.task});
 
   String get _formattedDate {
-    return DateFormat('dd/MM/yyyy').format(task.datePrevue);
+    final d = task.createdAt;
+    return d == null ? '—' : DateFormat('dd/MM/yyyy').format(d);
   }
   @override
   Widget build(BuildContext context) {
@@ -357,16 +358,37 @@ class _TaskCard extends StatelessWidget {
                     StatusBadge(statut: task.statut),
                   ],
                 ),
-                SizedBox(height: 8.h),
-                Text(
-                  task.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: AppColors.textSecondary,
+                if (task.objectifTitre != null &&
+                    task.objectifTitre!.isNotEmpty) ...[
+                  SizedBox(height: 4.h),
+                  Row(
+                    children: [
+                      Icon(Icons.flag_outlined,
+                          size: 14.sp, color: AppColors.primary),
+                      SizedBox(width: 5.w),
+                      Text(
+                        task.objectifTitre!,
+                        style: TextStyle(
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
+                if (task.description.isNotEmpty) ...[
+                  SizedBox(height: 8.h),
+                  Text(
+                    task.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
                 if (task.adresse != null) ...[
                   SizedBox(height: 12.h),
                   Row(
@@ -391,13 +413,11 @@ class _TaskCard extends StatelessWidget {
                 ],
                 SizedBox(height: 14.h),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _MetaChip(
                       icon: Icons.calendar_month_outlined,
                       label: _formattedDate,
                     ),
-                    _PriorityChip(priority: task.priorite),
                   ],
                 ),
               ],
@@ -430,36 +450,6 @@ class _MetaChip extends StatelessWidget {
             style: TextStyle(fontSize: 12.sp, color: AppColors.textSecondary),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PriorityChip extends StatelessWidget {
-  final String priority;
-  const _PriorityChip({required this.priority});
-
-  @override
-  Widget build(BuildContext context) {
-    final (color, label) = switch (priority) {
-      AppConstants.priorityHaute => (AppColors.priorityHaute, 'Haute'),
-      AppConstants.priorityUrgente => (AppColors.priorityUrgente, 'Urgente'),
-      _ => (AppColors.priorityNormale, 'Normale'),
-    };
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(14.r),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 12.sp,
-          fontWeight: FontWeight.w700,
-        ),
       ),
     );
   }
