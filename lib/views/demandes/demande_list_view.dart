@@ -4,10 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:shimmer/shimmer.dart';
+import '../../core/constants/demande_types.dart';
+import '../../core/constants/workflow_roles.dart';
 import '../../core/routing/route_names.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/demande_model.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/demande_viewmodel.dart';
+import '../shared/widgets/error_banner.dart';
 import '../shared/widgets/status_badge.dart';
 
 class DemandeListView extends ConsumerStatefulWidget {
@@ -20,6 +24,7 @@ class DemandeListView extends ConsumerStatefulWidget {
 class _DemandeListViewState extends ConsumerState<DemandeListView>
     with AutomaticKeepAliveClientMixin {
   final _scroll = ScrollController();
+  String _mode = 'mine'; // 'mine' = my demandes list · 'inbox' = à traiter
 
   static const _statutFilters = [
     ('tous', 'Toutes'),
@@ -27,20 +32,10 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
     ('en_cours_validation', 'En validation'),
     ('validee', 'Validées'),
     ('en_cours_traitement', 'En traitement'),
+    ('en_production', 'En production'),
+    ('cloturee', 'Clôturées'),
     ('refusee', 'Refusées'),
   ];
-
-  static const _typeLabels = <int, String>{
-    1: 'Échantillons',
-    2: 'Échantillons + app.',
-    3: 'Réclamation',
-    4: 'Nouveau client',
-    5: 'Renouvellement showroom',
-    6: 'Formation',
-    7: 'Assistance chantier',
-    8: 'Machine à teinter',
-    9: 'Accessoires marketing',
-  };
 
   @override
   bool get wantKeepAlive => true;
@@ -67,21 +62,6 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
     if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 200) {
       ref.read(demandeListProvider.notifier).loadDemandes();
     }
-  }
-
-  static (Color, IconData) _typeStyle(int type) {
-    return switch (type) {
-      1 => (AppColors.primary, Icons.colorize_outlined),
-      2 => (AppColors.secondary, Icons.brush_outlined),
-      3 => (AppColors.primary, Icons.report_problem_outlined),
-      4 => (AppColors.secondary, Icons.person_add_outlined),
-      5 => (AppColors.primary, Icons.store_outlined),
-      6 => (AppColors.secondary, Icons.school_outlined),
-      7 => (AppColors.primary, Icons.construction_outlined),
-      8 => (AppColors.secondary, Icons.precision_manufacturing_outlined),
-      9 => (AppColors.primary, Icons.campaign_outlined),
-      _ => (AppColors.secondary, Icons.article_outlined),
-    };
   }
 
   void _showTypeFilter() {
@@ -153,7 +133,7 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
                 SizedBox(height: 8.h),
                 _typeFilterTile(
                     null, 'Tous les types', currentType, sheetContext),
-                ..._typeLabels.entries.map((e) =>
+                ...DemandeTypes.labels.entries.map((e) =>
                     _typeFilterTile(e.key, e.value, currentType, sheetContext)),
                 SizedBox(height: 8.h),
               ],
@@ -167,10 +147,10 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
   Widget _typeFilterTile(int? value, String label, int? currentType,
       BuildContext sheetContext) {
     final isSelected = value == currentType;
-    const unselectedBorder = Color(0xFFCBD5E1);
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
+      selected: isSelected,
       leading: Container(
         width: 22.w,
         height: 22.w,
@@ -178,7 +158,7 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
           shape: BoxShape.circle,
           color: isSelected ? AppColors.primary : Colors.transparent,
           border: Border.all(
-            color: isSelected ? AppColors.primary : unselectedBorder,
+            color: isSelected ? AppColors.primary : AppColors.borderStrong,
             width: 2,
           ),
         ),
@@ -213,56 +193,19 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
       body: SafeArea(
         child: Column(
           children: [
-            _buildFilterChips(activeFilter),
+            _buildModeToggle(),
+            if (_mode == 'mine') _buildFilterChips(activeFilter),
             // Error banner
-            if (state.error != null)
-              _ErrorBanner(
+            if (_mode == 'mine' && state.error != null)
+              ErrorBanner(
+                margin: EdgeInsets.fromLTRB(16.w, 0, 16.w, 8.h),
                 message: state.error!.message,
                 onRetry: () => ref
                     .read(demandeListProvider.notifier)
                     .loadDemandes(refresh: true),
               ),
             Expanded(
-              child: state.isInitialLoad
-                  ? const _DemandeListSkeleton()
-                  : state.demandes.isEmpty
-                      ? _buildEmptyState(activeFilter)
-                      : RefreshIndicator(
-                          onRefresh: () => ref
-                              .read(demandeListProvider.notifier)
-                              .loadDemandes(refresh: true),
-                          child: ListView.builder(
-                            controller: _scroll,
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: EdgeInsets.fromLTRB(
-                                16.w, 8.h, 16.w, 100.h),
-                            itemCount: state.demandes.length +
-                                (state.isLoading ? 1 : 0),
-                            itemBuilder: (context, index) {
-                              if (index == state.demandes.length) {
-                                return Padding(
-                                  padding:
-                                      EdgeInsets.symmetric(vertical: 16.h),
-                                  child: const Center(
-                                    child:
-                                        CircularProgressIndicator.adaptive(),
-                                  ),
-                                );
-                              }
-                              return _DemandeCard(
-                                key: ValueKey(state.demandes[index].id),
-                                demande: state.demandes[index],
-                                typeStyle: _typeStyle,
-                                onTap: () => context.goNamed(
-                                  RouteNames.demandeDetail,
-                                  pathParameters: {
-                                    'id': state.demandes[index].id!
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+              child: _mode == 'inbox' ? _buildInboxBody() : _buildMineBody(state, activeFilter),
             ),
           ],
         ),
@@ -270,13 +213,182 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
     );
   }
 
+  Widget _buildMineBody(DemandeListState state, String activeFilter) {
+    return state.isInitialLoad
+        ? const _DemandeListSkeleton()
+        : state.demandes.isEmpty
+            ? _buildEmptyState(activeFilter)
+            : RefreshIndicator(
+                onRefresh: () => ref
+                    .read(demandeListProvider.notifier)
+                    .loadDemandes(refresh: true),
+                child: ListView.builder(
+                  controller: _scroll,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 100.h),
+                  itemCount: state.demandes.length + (state.isLoading ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == state.demandes.length) {
+                      return Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16.h),
+                        child: const Center(child: CircularProgressIndicator.adaptive()),
+                      );
+                    }
+                    return _DemandeCard(
+                      key: ValueKey(state.demandes[index].id),
+                      demande: state.demandes[index],
+                      typeStyle: DemandeTypes.style,
+                      onTap: () => context.goNamed(
+                        RouteNames.demandeDetail,
+                        pathParameters: {'id': state.demandes[index].id!},
+                      ),
+                    );
+                  },
+                ),
+              );
+  }
+
+  Widget _buildInboxBody() {
+    // Field-only on mobile: back-office roles are redirected to the web.
+    final role = ref.watch(authProvider).user?.role;
+    if (isOfficeRole(role)) return _buildWebOnlyNotice();
+
+    final asyncInbox = ref.watch(demandeInboxProvider);
+    return asyncInbox.when(
+      loading: () => const _DemandeListSkeleton(),
+      error: (e, _) => _buildEmptyState('inbox_error'),
+      data: (list) {
+        if (list.isEmpty) return _buildEmptyState('inbox_empty');
+        return RefreshIndicator(
+          onRefresh: () async => ref.invalidate(demandeInboxProvider),
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 100.h),
+            itemCount: list.length,
+            itemBuilder: (context, index) => _DemandeCard(
+              key: ValueKey(list[index].id),
+              demande: list[index],
+              typeStyle: DemandeTypes.style,
+              onTap: () => context.goNamed(
+                RouteNames.demandeDetail,
+                pathParameters: {'id': list[index].id!},
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWebOnlyNotice() {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(40.r),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80.w,
+              height: 80.w,
+              decoration: BoxDecoration(color: AppColors.primaryGhost, shape: BoxShape.circle),
+              child: Icon(Icons.desktop_windows_outlined, size: 36.r, color: AppColors.primary),
+            ),
+            SizedBox(height: 20.h),
+            Text(
+              'Traitement sur le back-office',
+              style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              'Pour votre rôle, les demandes à traiter se gèrent depuis le back-office web. '
+              'L\'application mobile est réservée au suivi de terrain.',
+              style: TextStyle(fontSize: 13.sp, color: AppColors.textMuted, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeToggle() {
+    Widget seg(String key, String label, IconData icon) {
+      final active = _mode == key;
+      return Expanded(
+        child: Semantics(
+          button: true,
+          selected: active,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              if (_mode == key) return;
+              HapticFeedback.selectionClick();
+              setState(() => _mode = key);
+              if (key == 'inbox') ref.invalidate(demandeInboxProvider);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              // 44 dp minimum — the segment was ~36 dp tall.
+              constraints: BoxConstraints(minHeight: 44.h),
+              alignment: Alignment.center,
+              padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 6.w),
+              decoration: BoxDecoration(
+                color: active ? AppColors.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon,
+                      size: 16.r,
+                      color: active ? Colors.white : AppColors.textMuted),
+                  SizedBox(width: 6.w),
+                  Flexible(
+                    child: Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w700,
+                            color:
+                                active ? Colors.white : AppColors.textMuted)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      color: AppColors.surface,
+      padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w, 8.h),
+      child: Container(
+        padding: EdgeInsets.all(4.r),
+        decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(14.r)),
+        child: Row(children: [
+          seg('mine', 'Mes demandes', Icons.folder_outlined),
+          seg('inbox', 'À traiter', Icons.inbox_outlined),
+        ]),
+      ),
+    );
+  }
+
   PreferredSizeWidget _buildAppBar(DemandeListState state) {
+    // Title and count follow the active tab — the bar used to read
+    // "Mes Demandes / N au total" even while the inbox was on screen.
+    final isInbox = _mode == 'inbox';
     final count = state.demandes.length;
     final hasFilter =
         state.selectedStatut != null || state.selectedType != null;
-    final subtitle = hasFilter
-        ? '$count demande${count != 1 ? 's' : ''} filtrée${count != 1 ? 's' : ''}'
-        : '$count demande${count > 1 ? 's' : ''} au total';
+    final subtitle = isInbox
+        ? 'Demandes en attente de votre rôle'
+        : hasFilter
+            ? '$count demande${count != 1 ? 's' : ''} filtrée${count != 1 ? 's' : ''}'
+            : '$count demande${count != 1 ? 's' : ''} au total';
 
     return AppBar(
       backgroundColor: AppColors.surface,
@@ -285,7 +397,7 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Mes Demandes',
+            isInbox ? 'À traiter' : 'Mes demandes',
             style: TextStyle(
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w700,
@@ -293,40 +405,45 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
           ),
           Text(
             subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
                 fontSize: 12.sp,
-                color: AppColors.textSecondary,
+                color: AppColors.textMuted,
                 fontWeight: FontWeight.w400),
           ),
         ],
       ),
       actions: [
-        IconButton(
-          onPressed: _showTypeFilter,
-          tooltip: 'Filtrer par type',
-          icon: Container(
-            width: 36.w,
-            height: 36.w,
-            decoration: BoxDecoration(
-              color: state.selectedType != null
-                  ? AppColors.primary
-                  : AppColors.background,
-              shape: BoxShape.circle,
-              border: Border.all(
+        // The type filter only drives "Mes demandes"; hiding it in the inbox
+        // avoids a control that looks live but changes nothing on screen.
+        if (!isInbox)
+          IconButton(
+            onPressed: _showTypeFilter,
+            tooltip: 'Filtrer par type',
+            icon: Container(
+              width: 36.w,
+              height: 36.w,
+              decoration: BoxDecoration(
                 color: state.selectedType != null
                     ? AppColors.primary
-                    : AppColors.border,
+                    : AppColors.background,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: state.selectedType != null
+                      ? AppColors.primary
+                      : AppColors.borderStrong,
+                ),
+              ),
+              child: Icon(
+                Icons.filter_list_rounded,
+                color: state.selectedType != null
+                    ? Colors.white
+                    : AppColors.textMuted,
+                size: 18.r,
               ),
             ),
-            child: Icon(
-              Icons.filter_list_rounded,
-              color: state.selectedType != null
-                  ? Colors.white
-                  : AppColors.textSecondary,
-              size: 18.r,
-            ),
           ),
-        ),
         IconButton(
           onPressed: () => context.goNamed(RouteNames.demandeTypeSelection),
           tooltip: 'Nouvelle demande',
@@ -356,8 +473,9 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
     return Container(
       color: AppColors.surface,
       padding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 12.h),
+      // 44 dp row: the chips were ~28 dp tall, well under the touch minimum.
       child: SizedBox(
-        height: 36.h,
+        height: 44.h,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: _statutFilters.length,
@@ -365,33 +483,37 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
           itemBuilder: (context, index) {
             final (value, label) = _statutFilters[index];
             final isActive = activeFilter == value;
-            return InkWell(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                ref
-                    .read(demandeListProvider.notifier)
-                    .filterByStatut(value == 'tous' ? null : value);
-              },
-              borderRadius: BorderRadius.circular(20.r),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding:
-                    EdgeInsets.symmetric(horizontal: 14.w, vertical: 6.h),
-                decoration: BoxDecoration(
-                  color: isActive ? AppColors.primary : AppColors.background,
-                  borderRadius: BorderRadius.circular(20.r),
-                  border: Border.all(
-                    color:
-                        isActive ? AppColors.primary : AppColors.border,
-                    width: 1.5,
+            return Semantics(
+              button: true,
+              selected: isActive,
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  ref
+                      .read(demandeListProvider.notifier)
+                      .filterByStatut(value == 'tous' ? null : value);
+                },
+                borderRadius: BorderRadius.circular(22.r),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  alignment: Alignment.center,
+                  padding: EdgeInsets.symmetric(horizontal: 16.w),
+                  decoration: BoxDecoration(
+                    color: isActive ? AppColors.primary : AppColors.background,
+                    borderRadius: BorderRadius.circular(22.r),
+                    border: Border.all(
+                      color:
+                          isActive ? AppColors.primary : AppColors.borderStrong,
+                      width: 1.5,
+                    ),
                   ),
-                ),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w600,
-                    color: isActive ? Colors.white : AppColors.textSecondary,
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w600,
+                      color: isActive ? Colors.white : AppColors.textMuted,
+                    ),
                   ),
                 ),
               ),
@@ -403,7 +525,41 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
   }
 
   Widget _buildEmptyState(String activeFilter) {
-    final isFiltered = activeFilter != 'tous';
+    final isInbox = activeFilter.startsWith('inbox');
+    final isFiltered = activeFilter != 'tous' && !isInbox;
+    if (isInbox) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(40.r),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80.w,
+                height: 80.w,
+                decoration: BoxDecoration(color: AppColors.primaryGhost, shape: BoxShape.circle),
+                child: Icon(activeFilter == 'inbox_error' ? Icons.error_outline : Icons.inbox_outlined,
+                    size: 36.r, color: AppColors.primary),
+              ),
+              SizedBox(height: 20.h),
+              Text(
+                activeFilter == 'inbox_error' ? 'Erreur de chargement' : 'Rien à traiter',
+                style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                activeFilter == 'inbox_error'
+                    ? 'Impossible de récupérer les demandes à traiter.'
+                    : 'Aucune demande n\'attend une action de votre rôle.',
+                style: TextStyle(fontSize: 13.sp, color: AppColors.textMuted, height: 1.5),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Center(
       child: Padding(
         padding: EdgeInsets.all(40.r),
@@ -435,11 +591,9 @@ class _DemandeListViewState extends ConsumerState<DemandeListView>
             Text(
               isFiltered
                   ? 'Essayez de changer le filtre ou créez une nouvelle demande.'
-                  : 'Créez votre première demande en appuyant sur le bouton ci-dessous.',
+                  : 'Créez votre première demande avec le bouton ci-dessous.',
               style: TextStyle(
-                  fontSize: 13.sp,
-                  color: AppColors.textSecondary,
-                  height: 1.5),
+                  fontSize: 13.sp, color: AppColors.textMuted, height: 1.5),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 24.h),
@@ -507,27 +661,17 @@ class _DemandeCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                // Left color bar
-                Container(
-                  width: 4.w,
-                  height: 88.h,
-                  decoration: BoxDecoration(
-                    color: typeColor,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(16.r),
-                      bottomLeft: Radius.circular(16.r),
-                    ),
-                  ),
-                ),
-                // Icon
+                // The type accent lives on the icon tile. There used to also be
+                // a 4 px colored bar pinned to 88 dp, which stopped short as
+                // soon as the card grew past that height (long client name).
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14.w),
+                  padding: EdgeInsets.fromLTRB(14.w, 0, 14.w, 0),
                   child: Container(
-                    width: 44.w,
-                    height: 44.w,
+                    width: 46.w,
+                    height: 46.w,
                     decoration: BoxDecoration(
-                      color: typeColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12.r),
+                      color: typeColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14.r),
                     ),
                     child: Icon(typeIcon, color: typeColor, size: 22.r),
                   ),
@@ -554,13 +698,17 @@ class _DemandeCard extends StatelessWidget {
                           Text(
                             client,
                             style: TextStyle(
-                                fontSize: 12.sp,
-                                color: AppColors.textSecondary),
+                                fontSize: 12.sp, color: AppColors.textMuted),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         SizedBox(height: 6.h),
-                        Row(
+                        // Wrap, not Row: a long demande number used to push the
+                        // date past the card edge and overflow.
+                        Wrap(
+                          spacing: 8.w,
+                          runSpacing: 4.h,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             if (demande.numero != null)
                               Container(
@@ -574,23 +722,23 @@ class _DemandeCard extends StatelessWidget {
                                   demande.numero!,
                                   style: TextStyle(
                                       fontSize: 10.sp,
-                                      color: AppColors.textSecondary,
+                                      color: AppColors.textMuted,
                                       fontWeight: FontWeight.w500),
                                 ),
                               ),
-                            if (demande.numero != null &&
-                                _dateLabel.isNotEmpty)
-                              SizedBox(width: 6.w),
-                            if (_dateLabel.isNotEmpty) ...[
-                              Icon(Icons.calendar_today_outlined,
-                                  size: 10.r,
-                                  color: AppColors.textSecondary),
-                              SizedBox(width: 3.w),
-                              Text(_dateLabel,
-                                  style: TextStyle(
-                                      fontSize: 10.sp,
-                                      color: AppColors.textSecondary)),
-                            ],
+                            if (_dateLabel.isNotEmpty)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.calendar_today_outlined,
+                                      size: 10.r, color: AppColors.textMuted),
+                                  SizedBox(width: 3.w),
+                                  Text(_dateLabel,
+                                      style: TextStyle(
+                                          fontSize: 10.sp,
+                                          color: AppColors.textMuted)),
+                                ],
+                              ),
                           ],
                         ),
                       ],
@@ -642,56 +790,6 @@ class _DemandeListSkeleton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16.r),
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ─── Error banner ──────────────────────────────────────────────────────────────
-
-class _ErrorBanner extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorBanner({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.fromLTRB(16.w, 0, 16.w, 8.h),
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline_rounded,
-              color: AppColors.error, size: 18.r),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(fontSize: 13.sp, color: AppColors.error),
-            ),
-          ),
-          InkWell(
-            onTap: onRetry,
-            borderRadius: BorderRadius.circular(8.r),
-            child: Padding(
-              padding: EdgeInsets.all(4.r),
-              child: Text(
-                'Réessayer',
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.error,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

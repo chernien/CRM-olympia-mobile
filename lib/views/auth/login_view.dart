@@ -75,7 +75,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
       prefixIcon: Icon(icon, color: AppColors.textSecondary, size: 22.sp),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: const Color(0xFFF4F7FC),
+      fillColor: AppColors.inputFill,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(20.r),
         borderSide: BorderSide.none,
@@ -107,12 +107,34 @@ class _LoginViewState extends ConsumerState<LoginView> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Vector Logo integrated beautifully
+                  // L'anneau SEUL dans le Hero — comme sur le splash, avec lequel
+                  // il partage l'étiquette « olympia_logo ». Une image de forme
+                  // différente aux deux extrémités rendrait la transition bancale.
                   Hero(
                     tag: 'olympia_logo',
                     child: Image.asset(
-                      'assets/images/logo-360.png',
-                      height: 100.h, // Adjusted height for clear visibility
+                      'assets/images/olyhub-anneau.png',
+                      height: 100.h,
+                      semanticLabel: 'OlyHub',
+                    ),
+                  ),
+                  SizedBox(height: 14.h),
+                  // Le nom en TEXTE, pas gravé dans l'image : même italique, même
+                  // graisse et même bichromie que le splash, le tableau de bord et
+                  // le back-office web. Un seul traitement du nom partout.
+                  RichText(
+                    text: TextSpan(
+                      style: TextStyle(
+                        fontSize: 28.sp,
+                        fontWeight: FontWeight.w900,
+                        fontStyle: FontStyle.italic,
+                        letterSpacing: -1.4,
+                        height: 1,
+                      ),
+                      children: [
+                        TextSpan(text: 'Oly', style: TextStyle(color: AppColors.brand)),
+                        TextSpan(text: 'Hub', style: TextStyle(color: AppColors.secondary)),
+                      ],
                     ),
                   ),
                   SizedBox(height: 48.h),
@@ -149,88 +171,108 @@ class _LoginViewState extends ConsumerState<LoginView> {
                                 Text(
                                   'Accédez à votre espace Olympia',
                                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        color: AppColors.textSecondary,
+                                        color: AppColors.textMuted,
                                         fontSize: 14.sp,
                                       ),
                                 ),
                                 SizedBox(height: 32.h),
 
                                 // Email Field
-                                TextFormField(
-                                  controller: _emailController,
-                                  keyboardType: TextInputType.emailAddress,
-                                  style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 16.sp),
-                                  decoration: _customInputDecoration('Adresse email', Icons.email_outlined),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) return 'Veuillez saisir votre email';
-                                    if (!value.contains('@')) return 'Email invalide';
-                                    return null;
-                                  },
-                                ),
-                                SizedBox(height: 16.h),
-
-                                // Password Field
-                                TextFormField(
-                                  controller: _passwordController,
-                                  obscureText: _obscurePassword,
-                                  style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 16.sp),
-                                  decoration: _customInputDecoration(
-                                    'Mot de passe',
-                                    Icons.lock_outline_rounded,
-                                    suffixIcon: Padding(
-                                      padding: EdgeInsets.only(right: 8.w),
-                                      child: IconButton(
-                                        icon: Icon(
-                                          _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                                          color: AppColors.textSecondary,
-                                          size: 22.sp,
-                                        ),
-                                        onPressed: () {
-                                          setState(() => _obscurePassword = !_obscurePassword);
+                                AutofillGroup(
+                                  child: Column(
+                                    children: [
+                                      TextFormField(
+                                        controller: _emailController,
+                                        keyboardType: TextInputType.emailAddress,
+                                        textInputAction: TextInputAction.next,
+                                        autofillHints: const [AutofillHints.username, AutofillHints.email],
+                                        style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 16.sp),
+                                        decoration: _customInputDecoration('Adresse email', Icons.email_outlined),
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) return 'Veuillez saisir votre email';
+                                          if (!value.contains('@')) return 'Email invalide';
+                                          return null;
                                         },
                                       ),
-                                    ),
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) return 'Veuillez saisir votre mot de passe';
-                                    return null;
-                                  },
-                                ),
-                                
-                                // Remember Me
-                                SizedBox(height: 12.h),
-                                GestureDetector(
-                                  onTap: () => setState(() => _rememberMe = !_rememberMe),
-                                  behavior: HitTestBehavior.opaque,
-                                  child: Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 20.w,
-                                        height: 20.w,
-                                        child: Checkbox(
-                                          value: _rememberMe,
-                                          onChanged: (v) => setState(() => _rememberMe = v ?? false),
-                                          activeColor: AppColors.primary,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(4.r),
+                                      SizedBox(height: 16.h),
+
+                                      // Password Field
+                                      TextFormField(
+                                        controller: _passwordController,
+                                        obscureText: _obscurePassword,
+                                        textInputAction: TextInputAction.done,
+                                        autofillHints: const [AutofillHints.password],
+                                        onFieldSubmitted: (_) {
+                                          if (!authState.isLoading) _handleLogin();
+                                        },
+                                        style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 16.sp),
+                                        decoration: _customInputDecoration(
+                                          'Mot de passe',
+                                          Icons.lock_outline_rounded,
+                                          suffixIcon: Padding(
+                                            padding: EdgeInsets.only(right: 8.w),
+                                            child: IconButton(
+                                              tooltip: _obscurePassword
+                                                  ? 'Afficher le mot de passe'
+                                                  : 'Masquer le mot de passe',
+                                              icon: Icon(
+                                                _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                                color: AppColors.textSecondary,
+                                                size: 22.sp,
+                                              ),
+                                              onPressed: () {
+                                                setState(() => _obscurePassword = !_obscurePassword);
+                                              },
+                                            ),
                                           ),
-                                          side: BorderSide(color: AppColors.textSecondary, width: 1.5),
-                                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                         ),
-                                      ),
-                                      SizedBox(width: 10.w),
-                                      Text(
-                                        'Se souvenir de moi',
-                                        style: TextStyle(
-                                          color: AppColors.textSecondary,
-                                          fontSize: 13.sp,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) return 'Veuillez saisir votre mot de passe';
+                                          return null;
+                                        },
                                       ),
                                     ],
                                   ),
                                 ),
-                                SizedBox(height: 32.h),
+
+                                // Remember Me — the whole row is the target, and it
+                                // is tall enough to hit (was a 20 px checkbox).
+                                SizedBox(height: 8.h),
+                                InkWell(
+                                  onTap: () => setState(() => _rememberMe = !_rememberMe),
+                                  borderRadius: BorderRadius.circular(12.r),
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 8.h),
+                                    child: Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 28.w,
+                                          height: 28.w,
+                                          child: Checkbox(
+                                            value: _rememberMe,
+                                            onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                                            activeColor: AppColors.primary,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(6.r),
+                                            ),
+                                            side: BorderSide(color: AppColors.borderStrong, width: 1.5),
+                                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                        ),
+                                        SizedBox(width: 10.w),
+                                        Text(
+                                          'Se souvenir de moi',
+                                          style: TextStyle(
+                                            color: AppColors.textMuted,
+                                            fontSize: 13.sp,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: 28.h),
 
                                 // Error Message
                                 if (authState.error != null)
@@ -314,24 +356,19 @@ class _LoginViewState extends ConsumerState<LoginView> {
                             ),
                           ),
                       
-                      // Bottom Text
-                      const SizedBox(height: 32),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            "Problème d'accès ?",
-                            style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-                          ),
-                          TextButton(
-                            onPressed: () {},
-                            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-                            child: const Text(
-                              'Contacter l\'admin',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ],
+                      // Bottom Text — plain guidance. This used to be a
+                      // "Contacter l'admin" button wired to an empty callback:
+                      // a control that names an action it never performs.
+                      SizedBox(height: 28.h),
+                      Text(
+                        "Problème d'accès ? Contactez l'administrateur Olympia.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w500,
+                          height: 1.4,
+                        ),
                       )
                     ],
                   ),

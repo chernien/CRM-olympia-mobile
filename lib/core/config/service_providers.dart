@@ -5,8 +5,10 @@ import '../../services/auth_service.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/task_service.dart';
 import '../../services/demande_service.dart';
-import '../../services/client_service.dart';
+import '../../services/lookup_service.dart';
 import '../../services/upload_service.dart';
+import '../../services/notification_api_service.dart';
+import '../../services/push_service.dart';
 
 /// Riverpod provider wrappers around GetIt singletons.
 ///
@@ -28,11 +30,17 @@ final taskServiceProvider =
 final demandeServiceProvider =
     Provider<DemandeService>((ref) => getIt<DemandeService>());
 
-final clientServiceProvider =
-    Provider<ClientService>((ref) => getIt<ClientService>());
+final lookupServiceProvider =
+    Provider<LookupService>((ref) => getIt<LookupService>());
 
 final uploadServiceProvider =
     Provider<UploadService>((ref) => getIt<UploadService>());
 
 final dioClientProvider =
     Provider<DioClient>((ref) => getIt<DioClient>());
+
+final notificationApiServiceProvider =
+    Provider<NotificationApiService>((ref) => getIt<NotificationApiService>());
+
+final pushServiceProvider =
+    Provider<PushService>((ref) => getIt<PushService>());

@@ -9,6 +9,7 @@ import '../../core/routing/route_names.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/task_model.dart';
 import '../../viewmodels/task_viewmodel.dart';
+import '../shared/widgets/error_banner.dart';
 import '../shared/widgets/status_badge.dart';
 import 'package:intl/intl.dart';
 
@@ -77,7 +78,7 @@ class _TaskListViewState extends ConsumerState<TaskListView>
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
-          'Mes Tâches',
+          'Mes tâches',
           style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.w700),
         ),
         actions: [
@@ -115,7 +116,8 @@ class _TaskListViewState extends ConsumerState<TaskListView>
             ),
             // Error banner — shown even when list has data (partial refresh fail)
             if (state.error != null)
-              _ErrorBanner(
+              ErrorBanner(
+                margin: EdgeInsets.fromLTRB(16.w, 0, 16.w, 8.h),
                 message: state.error!.message,
                 onRetry: () =>
                     ref.read(taskListProvider.notifier).loadTasks(refresh: true),
@@ -219,8 +221,9 @@ class _TaskListViewState extends ConsumerState<TaskListView>
   }
 
   Widget _buildFilterChips(String? activeStatut) {
+    // 44 dp row: the chips were ~30 dp tall, under the touch-target minimum.
     return SizedBox(
-      height: 36.h,
+      height: 44.h,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _filters.length,
@@ -228,28 +231,33 @@ class _TaskListViewState extends ConsumerState<TaskListView>
         itemBuilder: (context, index) {
           final (value, label) = _filters[index];
           final isActive = activeStatut == value;
-          return InkWell(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              ref.read(taskListProvider.notifier).filterByStatut(value);
-            },
-            borderRadius: BorderRadius.circular(20.r),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 7.h),
-              decoration: BoxDecoration(
-                color: isActive ? AppColors.primary : AppColors.surface,
-                borderRadius: BorderRadius.circular(20.r),
-                border: Border.all(
-                  color: isActive ? AppColors.primary : AppColors.border,
+          return Semantics(
+            button: true,
+            selected: isActive,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                ref.read(taskListProvider.notifier).filterByStatut(value);
+              },
+              borderRadius: BorderRadius.circular(22.r),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                alignment: Alignment.center,
+                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                decoration: BoxDecoration(
+                  color: isActive ? AppColors.primary : AppColors.surface,
+                  borderRadius: BorderRadius.circular(22.r),
+                  border: Border.all(
+                    color: isActive ? AppColors.primary : AppColors.borderStrong,
+                  ),
                 ),
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: isActive ? Colors.white : AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: isActive ? Colors.white : AppColors.textMuted,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -271,25 +279,33 @@ class _TaskListViewState extends ConsumerState<TaskListView>
       ),
       child: Column(
         children: [
-          Icon(Icons.task_alt_rounded, size: 48.sp, color: AppColors.primary),
-          SizedBox(height: 16.h),
+          Container(
+            width: 80.w,
+            height: 80.w,
+            decoration: BoxDecoration(
+              color: AppColors.primaryGhost,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.task_alt_rounded,
+                size: 36.r, color: AppColors.primary),
+          ),
+          SizedBox(height: 20.h),
           Text(
             isFiltered
                 ? 'Aucune tâche dans cette catégorie'
-                : 'Aucune tâche disponible',
+                : 'Aucune tâche',
             textAlign: TextAlign.center,
-            style:
-                TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w700),
           ),
-          SizedBox(height: 6.h),
+          SizedBox(height: 8.h),
           Text(
             isFiltered
                 ? 'Essayez un autre filtre ou créez une nouvelle tâche.'
-                : 'Tirez vers le bas pour actualiser ou ajoutez une nouvelle tâche.',
+                : 'Enregistrez votre première visite client.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14.sp,
-              color: AppColors.textSecondary,
+              color: AppColors.textMuted,
               height: 1.5,
             ),
           ),
@@ -385,7 +401,7 @@ class _TaskCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 14.sp,
-                      color: AppColors.textSecondary,
+                      color: AppColors.textMuted,
                     ),
                   ),
                 ],
@@ -396,7 +412,7 @@ class _TaskCard extends StatelessWidget {
                       Icon(
                         Icons.location_on_outlined,
                         size: 16.sp,
-                        color: AppColors.textSecondary,
+                        color: AppColors.textMuted,
                       ),
                       SizedBox(width: 6.w),
                       Expanded(
@@ -404,7 +420,7 @@ class _TaskCard extends StatelessWidget {
                           task.adresse!,
                           style: TextStyle(
                             fontSize: 13.sp,
-                            color: AppColors.textSecondary,
+                            color: AppColors.textMuted,
                           ),
                         ),
                       ),
@@ -412,13 +428,12 @@ class _TaskCard extends StatelessWidget {
                   ),
                 ],
                 SizedBox(height: 14.h),
-                Row(
-                  children: [
-                    _MetaChip(
-                      icon: Icons.calendar_month_outlined,
-                      label: _formattedDate,
-                    ),
-                  ],
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: _MetaChip(
+                    icon: Icons.calendar_month_outlined,
+                    label: _formattedDate,
+                  ),
                 ),
               ],
             ),
@@ -447,7 +462,7 @@ class _MetaChip extends StatelessWidget {
           SizedBox(width: 8.w),
           Text(
             label,
-            style: TextStyle(fontSize: 12.sp, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 12.sp, color: AppColors.textMuted),
           ),
         ],
       ),
@@ -482,58 +497,7 @@ class _TaskListSkeleton extends StatelessWidget {
   }
 }
 
-// ─── Error banner ─────────────────────────────────────────────────────────────
-
-class _ErrorBanner extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorBanner({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.fromLTRB(16.w, 0, 16.w, 8.h),
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline_rounded,
-              color: AppColors.error, size: 18.r),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: Text(
-              message,
-              style:
-                  TextStyle(fontSize: 13.sp, color: AppColors.error),
-            ),
-          ),
-          InkWell(
-            onTap: onRetry,
-            borderRadius: BorderRadius.circular(8.r),
-            child: Padding(
-              padding: EdgeInsets.all(4.r),
-              child: Text(
-                'Réessayer',
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.error,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Helper so DashboardState has consistent initial-load semantics
+// Helper so TaskListState has consistent initial-load semantics
 extension _TaskInitialLoad on TaskListState {
   bool get isInitialLoad => isLoading && tasks.isEmpty;
 }

@@ -104,11 +104,12 @@ class _SplashViewState extends ConsumerState<SplashView>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.white, Color(0xFFEEF3FA)],
+            // Derived from the brand blue instead of a hand-picked hex.
+            colors: [Colors.white, AppColors.tint(AppColors.primary)],
           ),
         ),
         child: SafeArea(
@@ -139,7 +140,7 @@ class _SplashViewState extends ConsumerState<SplashView>
                         child: Hero(
                           tag: 'olympia_logo',
                           child: Image.asset(
-                            'assets/images/logo-360.png',
+                            'assets/images/olyhub-anneau.png',
                             height: 110.h,
                             fit: BoxFit.contain,
                           ),
@@ -154,19 +155,22 @@ class _SplashViewState extends ConsumerState<SplashView>
                             children: [
                               RichText(
                                 text: TextSpan(
+                                  // Meme traitement que le back-office web :
+                                  // italique, graisse 900, chasse resserree.
                                   style: TextStyle(
                                     fontSize: 30.sp,
                                     fontWeight: FontWeight.w900,
-                                    letterSpacing: -0.5,
+                                    fontStyle: FontStyle.italic,
+                                    letterSpacing: -1.5,   // ~ tracking-tighter
                                   ),
                                   children: [
                                     TextSpan(
-                                      text: 'Olympia ',
+                                      text: 'Oly',
                                       style: TextStyle(
-                                          color: AppColors.textPrimary),
+                                          color: AppColors.brand),
                                     ),
                                     TextSpan(
-                                      text: '360',
+                                      text: 'Hub',
                                       style: TextStyle(
                                           color: AppColors.secondary),
                                     ),

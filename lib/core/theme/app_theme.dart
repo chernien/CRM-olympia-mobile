@@ -82,7 +82,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFFF4F7FC),
+        fillColor: AppColors.inputFill,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
@@ -90,7 +90,9 @@ class AppTheme {
         focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: const BorderSide(color: AppColors.error, width: 2)),
         disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        hintStyle: GoogleFonts.outfit(color: AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.w400),
+        // Placeholder text must stay readable: textSecondary sits at ~2.3:1 on
+        // the input fill and fails WCAG AA.
+        hintStyle: GoogleFonts.outfit(color: AppColors.textMuted, fontSize: 14, fontWeight: FontWeight.w400),
         errorStyle: GoogleFonts.outfit(color: AppColors.error, fontSize: 12, fontWeight: FontWeight.w500),
         prefixIconColor: AppColors.textSecondary,
         suffixIconColor: AppColors.textSecondary,

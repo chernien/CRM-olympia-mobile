@@ -41,6 +41,28 @@ class AuthService {
     }
   }
 
+  /// Changes the signed-in user's own password. The current one is required —
+  /// an access token alone must never be enough to take over the account.
+  Future<Either<Failure, void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _dioClient.post(
+        ApiConstants.changePassword,
+        data: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur: ${e.toString()}'));
+    }
+  }
+
   /// Maps the backend UserDto onto [UserModel]. The backend sends the role in
   /// PascalCase ("Admin"/"Commercial"); the app compares it lowercase, so we
   /// normalize here before deserializing (and before caching it).

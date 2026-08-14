@@ -126,37 +126,54 @@ class _NavBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutQuint,
-        padding: EdgeInsets.symmetric(horizontal: isSelected ? 20.w : 12.w, vertical: 12.h),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(30.r),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              color: isSelected ? AppColors.primary : AppColors.textSecondary,
-              size: 24.sp,
+    // The label is only painted for the selected item, so unselected tabs were
+    // icon-only and unnamed to assistive tech. Semantics + tooltip give every
+    // destination a name in all states.
+    return Semantics(
+      label: label,
+      button: true,
+      selected: isSelected,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: label,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutQuint,
+            constraints: BoxConstraints(minWidth: 48.w, minHeight: 48.h),
+            alignment: Alignment.center,
+            padding: EdgeInsets.symmetric(
+                horizontal: isSelected ? 20.w : 12.w, vertical: 12.h),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.primaryGhost
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(30.r),
             ),
-            if (isSelected) ...[
-              SizedBox(width: 6.w),
-              Text(
-                label,
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14.sp,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isSelected ? activeIcon : icon,
+                  color: isSelected ? AppColors.primary : AppColors.textMuted,
+                  size: 24.sp,
                 ),
-              ),
-            ]
-          ],
+                if (isSelected) ...[
+                  SizedBox(width: 6.w),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14.sp,
+                    ),
+                  ),
+                ]
+              ],
+            ),
+          ),
         ),
       ),
     );

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,9 +13,19 @@ class CAChartWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(dashboardProvider);
-    final caData = state.selectedPeriod == PeriodType.mensuel
-        ? state.caMensuel
-        : state.caTrimestriel;
+    final periode = state.selectedPeriod;
+    final caData = switch (periode) {
+      PeriodType.mensuel => state.caMensuel,
+      PeriodType.trimestriel => state.caTrimestriel,
+      PeriodType.global => state.caGlobal,
+    };
+    final points = caData?.points ?? const [];
+
+    // Grid step derived from the data. It was pinned at 20 000, so small
+    // figures showed no grid at all and large ones drew hundreds of lines.
+    final maxValue = points.fold<double>(
+        0, (m, p) => p.value > m ? p.value : m);
+    final gridStep = _gridStep(maxValue);
 
     return Container(
       padding: EdgeInsets.all(16.r),
@@ -26,33 +38,62 @@ class CAChartWidget extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Répartition CA',
+            'Évolution du CA',
             style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 14.sp,
               fontWeight: FontWeight.w700,
             ),
           ),
-          SizedBox(height: 10.h),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _legendItem('Intern', AppColors.segmentIntern),
-                SizedBox(width: 12.w),
-                _legendItem('Extern', AppColors.segmentExtern),
-                SizedBox(width: 12.w),
-                _legendItem('Olybat', AppColors.segmentOlybat),
-              ],
+          SizedBox(height: 4.h),
+          Text(
+            // Followed the data instead of claiming "6 derniers mois" even when
+            // the quarterly period was selected.
+            // Le backend renvoie toujours les 6 derniers mois comme série ;
+            // seule l'assiette du TOTAL change avec la période.
+            periode == PeriodType.global
+                ? '6 derniers mois · en TND · total depuis le début'
+                : 'Par mois · en TND',
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 11.sp,
             ),
           ),
           SizedBox(height: 14.h),
           SizedBox(
             height: 190.h,
-            child: caData != null && caData.points.isNotEmpty
+            child: points.isNotEmpty
                 ? BarChart(
                     BarChartData(
-                      barGroups: caData.points
+                      // Tapping a bar now names the period and the exact amount
+                      // — the default tooltip printed a bare unlabelled number.
+                      barTouchData: BarTouchData(
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipColor: (_) => AppColors.textPrimary,
+                          tooltipBorderRadius: BorderRadius.circular(10),
+                          fitInsideHorizontally: true,
+                          fitInsideVertically: true,
+                          getTooltipItem: (group, _, rod, _) => BarTooltipItem(
+                            '${points[group.x].label}\n',
+                            TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: '${_plain(rod.toY)} TND',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      barGroups: points
                           .asMap()
                           .entries
                           .map(
@@ -77,14 +118,14 @@ class CAChartWidget extends ConsumerWidget {
                             showTitles: true,
                             getTitlesWidget: (value, meta) {
                               final index = value.toInt();
-                              if (index < caData.points.length) {
+                              if (index >= 0 && index < points.length) {
                                 return Padding(
                                   padding: EdgeInsets.only(top: 6.h),
                                   child: Text(
-                                    caData.points[index].label,
+                                    points[index].label,
                                     style: TextStyle(
                                       fontSize: 10.sp,
-                                      color: AppColors.textSecondary,
+                                      color: AppColors.textMuted,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -94,8 +135,29 @@ class CAChartWidget extends ConsumerWidget {
                             },
                           ),
                         ),
-                        leftTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
+                        // Value axis: the chart previously had no scale at all,
+                        // so bar heights could not be read as amounts.
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            interval: gridStep,
+                            reservedSize: 42.w,
+                            getTitlesWidget: (value, meta) {
+                              if (value <= 0) return const SizedBox();
+                              return Padding(
+                                padding: EdgeInsets.only(right: 6.w),
+                                child: Text(
+                                  _compact(value),
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    fontSize: 9.sp,
+                                    color: AppColors.textMuted,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                         topTitles: const AxisTitles(
                           sideTitles: SideTitles(showTitles: false),
@@ -108,51 +170,59 @@ class CAChartWidget extends ConsumerWidget {
                       gridData: FlGridData(
                         show: true,
                         drawVerticalLine: false,
-                        horizontalInterval: 20000,
+                        horizontalInterval: gridStep,
                         getDrawingHorizontalLine: (value) => FlLine(
-                          color: AppColors.border.withValues(alpha: 0.5),
+                          color: AppColors.border,
                           strokeWidth: 1,
                         ),
                       ),
                     ),
                   )
-                : Center(
-                    child: Text(
-                      'Aucune donnée disponible',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12.sp,
-                      ),
-                    ),
-                  ),
+                : _emptyState(),
           ),
         ],
       ),
     );
   }
 
-  Widget _legendItem(String label, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 10.w,
-          height: 10.w,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3.r),
+  Widget _emptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.bar_chart_rounded, size: 32.r, color: AppColors.border),
+          SizedBox(height: 10.h),
+          Text(
+            'Aucun chiffre sur cette période',
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12.sp),
           ),
-        ),
-        SizedBox(width: 5.w),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.sp,
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
+  }
+
+  /// A grid step that yields roughly 4 lines whatever the magnitude.
+  static double _gridStep(double maxValue) {
+    if (maxValue <= 0) return 1;
+    final rough = maxValue / 4;
+    final magnitude =
+        math.pow(10, (math.log(rough) / math.ln10).floor()).toDouble();
+    for (final m in const [1.0, 2.0, 2.5, 5.0, 10.0]) {
+      if (magnitude * m >= rough) return magnitude * m;
+    }
+    return magnitude * 10;
+  }
+
+  /// Axis labels only — amounts elsewhere stay raw and unrounded.
+  static String _compact(double v) {
+    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(0)}k';
+    return v.toStringAsFixed(0);
+  }
+
+  /// Exact amount, no rounding — matches how CA is shown everywhere else.
+  static String _plain(double v) {
+    final s = v.toString();
+    return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
   }
 }

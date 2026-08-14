@@ -11,8 +11,10 @@ import '../../core/theme/app_colors.dart';
 import '../../models/objectif_progress.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/dashboard_viewmodel.dart';
+import '../../viewmodels/notification_viewmodel.dart';
+import '../shared/widgets/error_banner.dart';
+import 'widgets/ca_categories_widget.dart';
 import 'widgets/ca_chart_widget.dart';
-import 'widgets/stats_card_widget.dart';
 
 class DashboardView extends ConsumerStatefulWidget {
   const DashboardView({super.key});
@@ -22,7 +24,7 @@ class DashboardView extends ConsumerStatefulWidget {
 }
 
 class _DashboardViewState extends ConsumerState<DashboardView>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   @override
   bool get wantKeepAlive => true;
 
@@ -32,13 +34,38 @@ class _DashboardViewState extends ConsumerState<DashboardView>
   void initState() {
     super.initState();
     _confetti = ConfettiController(duration: const Duration(seconds: 2));
-    Future.microtask(
-      () => ref.read(dashboardProvider.notifier).loadDashboard(),
-    );
+    // L'observateur de cycle de vie rafraîchit la pastille au retour d'arrière-plan :
+    // une notification arrivée pendant ce temps doit être comptée sans geste.
+    WidgetsBinding.instance.addObserver(this);
+    Future.microtask(() {
+      ref.read(dashboardProvider.notifier).loadDashboard();
+      _refreshUnread();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshUnread();
+  }
+
+  /// Recharge le compteur de non-lues (la pastille de la cloche).
+  void _refreshUnread() {
+    if (!mounted) return;
+    ref.read(notificationProvider.notifier).load();
+  }
+
+  /// Un seul geste de rafraîchissement pour l'écran : chiffres du tableau de
+  /// bord ET pastille de notifications.
+  Future<void> _refreshAll() async {
+    await Future.wait([
+      ref.read(dashboardProvider.notifier).loadDashboard(refresh: true),
+      ref.read(notificationProvider.notifier).load(),
+    ]);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _confetti.dispose();
     super.dispose();
   }
@@ -71,6 +98,9 @@ class _DashboardViewState extends ConsumerState<DashboardView>
   Widget build(BuildContext context) {
     super.build(context);
     final state = ref.watch(dashboardProvider);
+    // Compteur de non-lues : même source que l'écran Notifications, donc la
+    // pastille et la liste ne peuvent pas diverger.
+    final unread = ref.watch(notificationProvider.select((s) => s.nonLues));
 
     // Detect newly-completed objectives and celebrate.
     ref.listen<DashboardState>(dashboardProvider, (_, next) {
@@ -82,17 +112,15 @@ class _DashboardViewState extends ConsumerState<DashboardView>
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         elevation: 0,
-        leadingWidth: 60.w,
+        leadingWidth: 64.w,
+        // IconButton, not a bare InkWell: it guarantees the 48 dp target and
+        // carries a screen-reader name that the icon alone did not have.
         leading: Padding(
-          padding: EdgeInsets.only(left: 12.w),
-          child: InkWell(
-            onTap: state.isLoading
-                ? null
-                : () => ref
-                    .read(dashboardProvider.notifier)
-                    .loadDashboard(refresh: true),
-            borderRadius: BorderRadius.circular(24.r),
-            child: Container(
+          padding: EdgeInsets.only(left: 8.w),
+          child: IconButton(
+            tooltip: 'Actualiser',
+            onPressed: state.isLoading ? null : _refreshAll,
+            icon: Container(
               width: 40.w,
               height: 40.w,
               decoration: BoxDecoration(
@@ -121,7 +149,7 @@ class _DashboardViewState extends ConsumerState<DashboardView>
           mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset(
-              'assets/images/logo-360.png',
+              'assets/images/olyhub-anneau.png',
               height: 38.h,
             ),
             SizedBox(width: 12.w),
@@ -129,14 +157,21 @@ class _DashboardViewState extends ConsumerState<DashboardView>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'OLYMPIA',
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.primary,
-                    letterSpacing: 1.5,
-                    height: 1,
+                RichText(
+                  text: TextSpan(
+                    // Identique au web et au splash : une seule facon d'ecrire
+                    // le nom dans toute l'application.
+                    style: TextStyle(
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.w900,
+                      fontStyle: FontStyle.italic,
+                      letterSpacing: -0.9,
+                      height: 1,
+                    ),
+                    children: [
+                      TextSpan(text: 'Oly', style: TextStyle(color: AppColors.brand)),
+                      TextSpan(text: 'Hub', style: TextStyle(color: AppColors.secondary)),
+                    ],
                   ),
                 ),
                 Text(
@@ -155,24 +190,13 @@ class _DashboardViewState extends ConsumerState<DashboardView>
         ),
         actions: [
           Padding(
-            padding: EdgeInsets.only(right: 12.w),
-            child: InkWell(
-              onTap: () => context.goNamed(RouteNames.notifications),
-              borderRadius: BorderRadius.circular(24.r),
-              child: Container(
-                width: 40.w,
-                height: 40.w,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Icon(
-                  Icons.notifications_none_rounded,
-                  color: AppColors.textPrimary,
-                  size: 22.sp,
-                ),
-              ),
+            padding: EdgeInsets.only(right: 8.w),
+            child: IconButton(
+              tooltip: unread > 0
+                  ? 'Notifications, $unread non lues'
+                  : 'Notifications',
+              onPressed: () => context.goNamed(RouteNames.notifications),
+              icon: _NotificationBell(unread: unread),
             ),
           ),
         ],
@@ -183,9 +207,7 @@ class _DashboardViewState extends ConsumerState<DashboardView>
             child: state.isInitialLoad
                 ? const _DashboardSkeleton()
                 : RefreshIndicator(
-                onRefresh: () => ref
-                    .read(dashboardProvider.notifier)
-                    .loadDashboard(refresh: true),
+                onRefresh: _refreshAll,
                 child: ListView(
                   padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 100.h),
                   children: [
@@ -193,7 +215,7 @@ class _DashboardViewState extends ConsumerState<DashboardView>
                     // Error banner — shown over stale data during refresh
                     if (state.error != null) ...[
                       SizedBox(height: 12.h),
-                      _ErrorBanner(
+                      ErrorBanner(
                         message: state.error!.message,
                         onRetry: () => ref
                             .read(dashboardProvider.notifier)
@@ -205,59 +227,11 @@ class _DashboardViewState extends ConsumerState<DashboardView>
                     SizedBox(height: 10.h),
                     _buildPeriodSelector(state),
                     SizedBox(height: 22.h),
-                    _buildSectionTitle('Activité'),
-                    SizedBox(height: 12.h),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: StatsCardWidget(
-                            title: 'Visites ce mois',
-                            value:
-                                '${state.statsVisites?.moisEnCours ?? 0}',
-                            icon: Icons.location_on_outlined,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        SizedBox(width: 12.w),
-                        Expanded(
-                          child: StatsCardWidget(
-                            title: 'Tâches ce mois',
-                            value:
-                                '${state.statsTaches?.moisEnCours ?? 0}',
-                            icon: Icons.task_alt_outlined,
-                            color: AppColors.secondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 12.h),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: StatsCardWidget(
-                            title: 'Visites trim.',
-                            value:
-                                '${state.statsVisites?.trimestreEnCours ?? 0}',
-                            icon: Icons.calendar_month_outlined,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        SizedBox(width: 12.w),
-                        Expanded(
-                          child: StatsCardWidget(
-                            title: 'Tâches trim.',
-                            value:
-                                '${state.statsTaches?.trimestreEnCours ?? 0}',
-                            icon: Icons.assignment_turned_in_outlined,
-                            color: AppColors.secondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 22.h),
                     _buildSectionTitle('Chiffre d\'Affaires'),
                     SizedBox(height: 12.h),
                     const CAChartWidget(),
+                    SizedBox(height: 12.h),
+                    const CaCategoriesWidget(),
                     if (state.objectifs.isNotEmpty) ...[
                       SizedBox(height: 22.h),
                       _buildSectionTitle('Mes Objectifs'),
@@ -285,12 +259,13 @@ class _DashboardViewState extends ConsumerState<DashboardView>
               minBlastForce: 8,
               gravity: 0.25,
               emissionFrequency: 0.05,
+              // Brand palette — these were five unrelated hardcoded hex values.
               colors: const [
-                Color(0xFF003690),
-                Color(0xFF2E7D32),
-                Color(0xFFF59E0B),
-                Color(0xFFAD5FE1),
-                Color(0xFF00A3FF),
+                AppColors.primary,
+                AppColors.secondary,
+                AppColors.warning,
+                AppColors.success,
+                AppColors.demandeNouvelle,
               ],
             ),
           ),
@@ -369,7 +344,7 @@ class _DashboardViewState extends ConsumerState<DashboardView>
                 Text(realiseText,
                     style: TextStyle(
                         fontSize: 11.sp,
-                        color: AppColors.textSecondary,
+                        color: AppColors.textMuted,
                         fontWeight: FontWeight.w600)),
                 if (o.description.isNotEmpty) ...[
                   SizedBox(height: 3.h),
@@ -377,7 +352,7 @@ class _DashboardViewState extends ConsumerState<DashboardView>
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 10.5.sp, color: AppColors.textSecondary)),
+                          fontSize: 10.5.sp, color: AppColors.textMuted)),
                 ],
               ],
             ),
@@ -411,10 +386,19 @@ class _DashboardViewState extends ConsumerState<DashboardView>
 
   Widget _buildWelcomeCard() {
     final user = ref.watch(authProvider).user;
-    final displayName = user?.fullName ?? 'Olympia User';
-    final subtitle = [
-      if (user?.role != null) user!.role == 'commercial' ? 'Commercial' : 'Admin',
-    ].join(' · ');
+    final displayName = user?.fullName ?? 'Utilisateur';
+    // Every role gets its real label — this used to print "Admin" for anyone
+    // who was not a commercial, including the Technicien.
+    final subtitle = switch ((user?.role ?? '').toLowerCase()) {
+      'admin' => 'Administrateur',
+      'commercial' => 'Commercial',
+      'technicien' => 'Technicien',
+      'directioncommerciale' => 'Direction commerciale',
+      'responsabletechnique' => 'Responsable technique',
+      'servicerecouvrement' => 'Service recouvrement',
+      '' => '',
+      _ => user!.role,
+    };
 
     return Container(
       padding: EdgeInsets.all(16.r),
@@ -517,6 +501,13 @@ class _DashboardViewState extends ConsumerState<DashboardView>
                 .read(dashboardProvider.notifier)
                 .selectPeriod(PeriodType.trimestriel),
           ),
+          _buildPeriodTab(
+            'Global',
+            state.selectedPeriod == PeriodType.global,
+            () => ref
+                .read(dashboardProvider.notifier)
+                .selectPeriod(PeriodType.global),
+          ),
         ],
       ),
     );
@@ -524,27 +515,102 @@ class _DashboardViewState extends ConsumerState<DashboardView>
 
   Widget _buildPeriodTab(String text, bool isSelected, VoidCallback onTap) {
     return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14.r),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: EdgeInsets.symmetric(vertical: 10.h),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary : AppColors.background,
-            borderRadius: BorderRadius.circular(14.r),
-          ),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: isSelected ? Colors.white : AppColors.textSecondary,
-              fontWeight:
-                  isSelected ? FontWeight.w700 : FontWeight.w500,
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14.r),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            // 44 dp minimum: the tab was ~38 dp tall.
+            constraints: BoxConstraints(minHeight: 44.h),
+            alignment: Alignment.center,
+            padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 8.w),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.primary : AppColors.background,
+              borderRadius: BorderRadius.circular(14.r),
+            ),
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isSelected ? Colors.white : AppColors.textMuted,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── Cloche + pastille de non-lues ───────────────────────────────────────────
+
+/// Icône cloche du tableau de bord, surmontée du nombre de notifications non
+/// lues — l'équivalent mobile de la pastille déjà présente sur le web.
+///
+/// La pastille déborde volontairement du cercle : `clipBehavior: none` est donc
+/// indispensable, sans quoi elle serait rognée par le `Container` de l'icône.
+class _NotificationBell extends StatelessWidget {
+  final int unread;
+
+  const _NotificationBell({required this.unread});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasUnread = unread > 0;
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 40.w,
+          height: 40.w,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: hasUnread ? AppColors.primary : AppColors.border,
+            ),
+          ),
+          child: Icon(
+            hasUnread
+                ? Icons.notifications_rounded
+                : Icons.notifications_none_rounded,
+            color: hasUnread ? AppColors.primary : AppColors.textPrimary,
+            size: 22.sp,
+          ),
+        ),
+        if (hasUnread)
+          Positioned(
+            top: -2.h,
+            right: -2.w,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
+              constraints: BoxConstraints(minWidth: 18.w, minHeight: 18.w),
+              decoration: BoxDecoration(
+                color: AppColors.error,
+                borderRadius: BorderRadius.circular(9.r),
+                // Le liseré blanc détache la pastille du cercle de l'icône.
+                border: Border.all(color: AppColors.surface, width: 1.5.w),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                unread > 99 ? '99+' : '$unread',
+                style: TextStyle(
+                  fontSize: 10.sp,
+                  height: 1.1,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -637,55 +703,6 @@ class _DashboardSkeleton extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(20.r),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Error banner ─────────────────────────────────────────────────────────────
-
-class _ErrorBanner extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorBanner({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
-      decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline_rounded,
-              color: AppColors.error, size: 18.r),
-          SizedBox(width: 10.w),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(fontSize: 13.sp, color: AppColors.error),
-            ),
-          ),
-          InkWell(
-            onTap: onRetry,
-            borderRadius: BorderRadius.circular(8.r),
-            child: Padding(
-              padding: EdgeInsets.all(4.r),
-              child: Text(
-                'Réessayer',
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.error,
-                ),
-              ),
             ),
           ),
         ],
@@ -853,8 +870,8 @@ class _CelebrationDialog extends StatelessWidget {
     final isCa = objectif.type == 'chiffre_affaire';
     final periode = objectif.isMensuel ? 'mensuel' : 'trimestriel';
     final what = isCa
-        ? 'ton objectif de chiffre d\'affaires $periode'
-        : 'ton objectif de tâches $periode';
+        ? 'votre objectif de chiffre d\'affaires $periode'
+        : 'votre objectif de tâches $periode';
 
     return Dialog(
       backgroundColor: Colors.white,
@@ -873,10 +890,13 @@ class _CelebrationDialog extends StatelessWidget {
               child: Container(
                 width: 84.w,
                 height: 84.w,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
-                    colors: [Color(0xFFF59E0B), Color(0xFFFFC85C)],
+                    colors: [
+                      AppColors.warning,
+                      AppColors.warning.withValues(alpha: 0.65),
+                    ],
                   ),
                 ),
                 child: Icon(Icons.emoji_events_rounded,
@@ -885,7 +905,7 @@ class _CelebrationDialog extends StatelessWidget {
             ),
             SizedBox(height: 18.h),
             Text(
-              'Félicitations ! 🎉',
+              'Félicitations !',
               style: TextStyle(
                   fontSize: 20.sp,
                   fontWeight: FontWeight.w900,
@@ -893,10 +913,10 @@ class _CelebrationDialog extends StatelessWidget {
             ),
             SizedBox(height: 8.h),
             Text(
-              'Bravo, tu as atteint $what.',
+              'Vous avez atteint $what.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  fontSize: 13.sp, color: AppColors.textSecondary, height: 1.4),
+                  fontSize: 13.sp, color: AppColors.textMuted, height: 1.4),
             ),
             SizedBox(height: 22.h),
             SizedBox(

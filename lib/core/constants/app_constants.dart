@@ -1,7 +1,7 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'Olympia';
+  static const String appName = 'OlyHub';
   static const String appVersion = '1.0.0';
 
   // JWT
@@ -33,6 +33,8 @@ class AppConstants {
   static const String demandeStatusEnValidation = 'en_cours_validation';
   static const String demandeStatusValidee = 'validee';
   static const String demandeStatusEnTraitement = 'en_cours_traitement';
+  // Phases tenues par le rôle Prod : « en production », pas « en traitement ».
+  static const String demandeStatusEnProduction = 'en_production';
   static const String demandeStatusTraitee = 'traitee';
   static const String demandeStatusCloturee = 'cloturee';
   static const String demandeStatusRefusee = 'refusee';

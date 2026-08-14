@@ -28,6 +28,10 @@ class StatusBadge extends StatelessWidget {
     );
   }
 
+  /// French label for a status. Exposed so the demande detail header can reuse
+  /// it instead of keeping a second mapping that drifted out of sync.
+  static String labelFor(String statut) => _getStatusInfo(statut).$2;
+
   static (Color, String) _getStatusInfo(String statut) {
     return switch (statut) {
       AppConstants.taskStatusEnCours => (AppColors.taskEnCours, 'En cours'),
@@ -36,6 +40,7 @@ class StatusBadge extends StatelessWidget {
       AppConstants.demandeStatusNouvelle => (AppColors.demandeNouvelle, 'Nouvelle'),
       AppConstants.demandeStatusEnValidation => (AppColors.demandeEnValidation, 'En validation'),
       AppConstants.demandeStatusValidee => (AppColors.demandeValidee, 'Validée'),
+      AppConstants.demandeStatusEnProduction => (AppColors.demandeEnProduction, 'En production'),
       AppConstants.demandeStatusTraitee => (AppColors.demandeTraitee, 'Traitée'),
       AppConstants.demandeStatusCloturee => (AppColors.demandeCloturee, 'Clôturée'),
       AppConstants.demandeStatusRefusee => (AppColors.demandeRefusee, 'Refusée'),

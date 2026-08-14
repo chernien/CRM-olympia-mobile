@@ -4,6 +4,7 @@ import '../core/errors/failures.dart';
 import '../core/errors/exceptions.dart';
 import '../core/network/dio_client.dart';
 import '../core/network/network_info.dart';
+import '../models/ca_categorie.dart';
 import '../models/dashboard_model.dart';
 import '../models/objectif_progress.dart';
 
@@ -42,16 +43,20 @@ class DashboardService {
 
   DashboardService(this._dioClient, this._networkInfo);
 
-  final _monthCache = _Cached<Map<String, dynamic>>();
-  final _quarterCache = _Cached<Map<String, dynamic>>();
+  // Indexés par clé de période ('month' | 'quarter' | 'all') plutôt qu'une paire de
+  // champs par période : ajouter « Global » ne demande plus de toucher au cache,
+  // à la déduplication et à l'écriture en trois endroits séparables.
+  final _caches = <String, _Cached<Map<String, dynamic>>>{};
+  final _inFlight = <String, Future<Either<Failure, Map<String, dynamic>>>>{};
 
-  Future<Either<Failure, Map<String, dynamic>>>? _monthInFlight;
-  Future<Either<Failure, Map<String, dynamic>>>? _quarterInFlight;
+  _Cached<Map<String, dynamic>> _cacheFor(String periode) =>
+      _caches.putIfAbsent(periode, () => _Cached<Map<String, dynamic>>());
 
   /// Bust all caches (e.g. on pull-to-refresh).
   void clearCache() {
-    _monthCache.clear();
-    _quarterCache.clear();
+    for (final c in _caches.values) {
+      c.clear();
+    }
   }
 
   // ─── Public getters (stable API for the ViewModel) ───────────────
@@ -64,6 +69,12 @@ class DashboardService {
   Future<Either<Failure, CAData>> getCaTrimestriel(
       {int? trimestre, int? annee}) async {
     final res = await _fetch('quarter');
+    return res.map(_caData);
+  }
+
+  /// CA « Global » : tout depuis le début, toutes périodes confondues.
+  Future<Either<Failure, CAData>> getCaGlobal() async {
+    final res = await _fetch('all');
     return res.map(_caData);
   }
 
@@ -88,6 +99,25 @@ class DashboardService {
           trimestreEnCours: _toInt(q['taches']),
           enCoursDeTraitement: _toInt(m['tachesEnCours']),
         ));
+  }
+
+  /// CA split by article category (Intérieur / Extérieur / Olybat), resolved
+  /// server-side through Divalto: ENT → MOUV → ART → T012.
+  Future<Either<Failure, CaCategories>> getCaCategories(String periode) async {
+    if (!await _networkInfo.isConnected) return const Left(NetworkFailure());
+    try {
+      final response = await _dioClient.get(
+        ApiConstants.dashboardCaCategories,
+        queryParameters: {'periode': periode},
+      );
+      final data =
+          (response.data['data'] ?? response.data) as Map<String, dynamic>;
+      return Right(CaCategories.fromJson(data));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur de données: $e'));
+    }
   }
 
   /// CA objectives (admin-set) with the current commercial's attainment (%).
@@ -121,27 +151,19 @@ class DashboardService {
   // ─── Core fetch (cached + deduped per period) ────────────────────
 
   Future<Either<Failure, Map<String, dynamic>>> _fetch(String periode) async {
-    final cache = periode == 'quarter' ? _quarterCache : _monthCache;
+    final cache = _cacheFor(periode);
     if (cache.isValid) return Right(cache.value!);
 
     // Deduplicate concurrent requests for the same period.
-    final existing = periode == 'quarter' ? _quarterInFlight : _monthInFlight;
+    final existing = _inFlight[periode];
     if (existing != null) return existing;
 
     final future = _doFetch(periode);
-    if (periode == 'quarter') {
-      _quarterInFlight = future;
-    } else {
-      _monthInFlight = future;
-    }
+    _inFlight[periode] = future;
     try {
       return await future;
     } finally {
-      if (periode == 'quarter') {
-        _quarterInFlight = null;
-      } else {
-        _monthInFlight = null;
-      }
+      _inFlight.remove(periode);
     }
   }
 
@@ -155,8 +177,7 @@ class DashboardService {
       // Envelope: { "data": { ... DashboardStatsDto ... } }
       final data =
           (response.data['data'] ?? response.data) as Map<String, dynamic>;
-      final cache = periode == 'quarter' ? _quarterCache : _monthCache;
-      cache.store(data);
+      _cacheFor(periode).store(data);
       return Right(data);
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Ressources à conserver malgré la réduction automatique.
+
+  Le défaut corrigé (14/08/2026, en production) : AUCUNE notification ne s'affichait
+  jamais sur les téléphones, alors que le serveur envoyait correctement et que
+  Firebase acceptait le message. Le journal de l'appareil donnait la vraie cause :
+
+      FLTFireMsgReceiver: broadcast received for message
+      flutter : PlatformException(invalid_icon, The resource @drawable/ic_stat_olympia
+                could not be found...)
+
+  Le message arrivait donc bien ; c'est l'AFFICHAGE qui échouait, faute d'icône.
+
+  Pourquoi elle disparaissait : un build Flutter en mode release active la réduction
+  de ressources. Celle ci conserve ce qu'elle voit référencé (le manifeste, les
+  styles, les layouts) et supprime le reste. Or ic_stat_olympia n'est cité NULLE PART
+  en XML : seulement dans une chaîne Dart, NotificationService._androidIcon, résolue
+  par nom à l'exécution. Invisible pour le réducteur, donc supprimée ; en release
+  uniquement.
+
+  D'où un symptôme trompeur : tout fonctionnait en développement (aucune réduction),
+  rien ne fonctionnait chez le client. La comparaison des deux APK l'a montré : le nom
+  est présent dans le resources.arsc du debug, absent de celui du release.
+
+  Toute ressource future résolue par NOM à l'exécution doit être ajoutée ici.
+-->
+<resources
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_olympia" />

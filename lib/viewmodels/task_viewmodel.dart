@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/service_providers.dart';
 import '../core/constants/app_constants.dart';
 import '../core/errors/failures.dart';
+import '../models/activite_model.dart';
 import '../models/objectif_progress.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
@@ -153,6 +154,15 @@ final taskListProvider =
 
 /// Task-type objectives (set by the admin) — feed the "objectif" dropdown when
 /// a commercial creates a task. Reuses the objectives-progress endpoint.
+/// Catalogue des 7 activités terrain. Statique côté serveur : chargé une fois
+/// puis servi depuis le cache Riverpod, plutôt qu'à chaque ouverture du
+/// formulaire.
+final activitesProvider = FutureProvider<List<ActiviteDef>>((ref) async {
+  final service = ref.read(taskServiceProvider);
+  final res = await service.getActivites();
+  return res.fold((_) => <ActiviteDef>[], (list) => list);
+});
+
 final taskObjectifsProvider = FutureProvider<List<ObjectifProgress>>((ref) async {
   final service = ref.read(dashboardServiceProvider);
   final res = await service.getObjectifsProgress();

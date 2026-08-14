@@ -6,9 +6,11 @@ import '../../services/auth_service.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/task_service.dart';
 import '../../services/demande_service.dart';
-import '../../services/client_service.dart';
+import '../../services/lookup_service.dart';
 import '../../services/upload_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/notification_api_service.dart';
+import '../../services/push_service.dart';
 
 final getIt = GetIt.instance;
 
@@ -42,10 +44,18 @@ Future<void> configureDependencies() async {
   getIt.registerLazySingleton<DemandeService>(
     () => DemandeService(getIt(), getIt()),
   );
-  getIt.registerLazySingleton<ClientService>(
-    () => ClientService(getIt(), getIt()),
+  getIt.registerLazySingleton<LookupService>(
+    () => LookupService(getIt(), getIt()),
   );
   getIt.registerLazySingleton<UploadService>(
     () => UploadService(getIt(), getIt()),
+  );
+  getIt.registerLazySingleton<NotificationApiService>(
+    () => NotificationApiService(getIt(), getIt()),
+  );
+  // FCM : seul transport push du mobile. Aucune connexion SignalR ici — un
+  // WebSocket ne survivrait pas à la fermeture de l'application.
+  getIt.registerLazySingleton<PushService>(
+    () => PushService(getIt(), getIt()),
   );
 }

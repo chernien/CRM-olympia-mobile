@@ -106,50 +106,68 @@ class DemandeListNotifier extends Notifier<DemandeListState> {
     );
   }
 
-  Future<bool> createDemande(DemandeModel demande) async {
-    state = state.copyWith(isSubmitting: true, error: null);
-
-    final result = await _demandeService.createDemande(demande);
-
-    return result.fold(
-      (failure) {
-        state = state.copyWith(isSubmitting: false, error: failure);
-        return false;
-      },
-      (newDemande) {
-        state = state.copyWith(
-          isSubmitting: false,
-          demandes: [newDemande, ...state.demandes],
-        );
-        return true;
-      },
-    );
-  }
-
-  Future<bool> updateDemandeStatus(
-    String demandeId,
-    String statut, {
+  /// Creates a demande via the dynamic renderer (submits phase 1).
+  Future<DemandeModel?> createFromPhase1({
+    required int typeDemande,
+    String? nomClient,
+    String? codeClient,
+    Map<String, dynamic> fields = const {},
+    List<String>? piecesJointes,
     String? commentaire,
   }) async {
     state = state.copyWith(isSubmitting: true, error: null);
 
-    final result = await _demandeService.updateDemandeStatus(
-      demandeId,
-      statut,
+    final result = await _demandeService.createFromPhase1(
+      typeDemande: typeDemande,
+      nomClient: nomClient,
+      codeClient: codeClient,
+      fields: fields,
+      piecesJointes: piecesJointes,
       commentaire: commentaire,
     );
 
     return result.fold(
       (failure) {
         state = state.copyWith(isSubmitting: false, error: failure);
-        return false;
+        return null;
+      },
+      (newDemande) {
+        state = state.copyWith(
+          isSubmitting: false,
+          demandes: [newDemande, ...state.demandes],
+        );
+        return newDemande;
+      },
+    );
+  }
+
+  /// Submits the current phase of a demande and advances its workflow.
+  Future<DemandeModel?> submitPhase(
+    String demandeId, {
+    Map<String, dynamic> fields = const {},
+    List<String>? piecesJointes,
+    String? commentaire,
+  }) async {
+    state = state.copyWith(isSubmitting: true, error: null);
+
+    final result = await _demandeService.submitPhase(
+      demandeId,
+      fields: fields,
+      piecesJointes: piecesJointes,
+      commentaire: commentaire,
+    );
+
+    return result.fold(
+      (failure) {
+        state = state.copyWith(isSubmitting: false, error: failure);
+        return null;
       },
       (updated) {
         final updatedList = state.demandes
             .map((d) => d.id == demandeId ? updated : d)
             .toList();
         state = state.copyWith(isSubmitting: false, demandes: updatedList);
-        return true;
+        return updated;
       },
     );
   }
@@ -208,3 +226,11 @@ final demandeListProvider =
 final demandeDetailProvider =
     NotifierProvider.autoDispose<DemandeDetailNotifier, DemandeDetailState>(
         DemandeDetailNotifier.new);
+
+// The demandes waiting for the caller's role to act (the "à traiter" inbox).
+final demandeInboxProvider =
+    FutureProvider.autoDispose<List<DemandeModel>>((ref) async {
+  final service = ref.read(demandeServiceProvider);
+  final result = await service.getInbox(pageSize: 100);
+  return result.fold((failure) => throw failure, (list) => list);
+});

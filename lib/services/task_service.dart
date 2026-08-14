@@ -4,6 +4,7 @@ import '../core/errors/failures.dart';
 import '../core/errors/exceptions.dart';
 import '../core/network/dio_client.dart';
 import '../core/network/network_info.dart';
+import '../models/activite_model.dart';
 import '../models/task_model.dart';
 
 class TaskService {
@@ -11,6 +12,26 @@ class TaskService {
   final NetworkInfo _networkInfo;
 
   TaskService(this._dioClient, this._networkInfo);
+
+  /// Catalogue des 7 activités terrain et de leurs champs. Statique côté
+  /// serveur, donc chargé une fois et mis en cache par le provider.
+  Future<Either<Failure, List<ActiviteDef>>> getActivites() async {
+    if (!await _networkInfo.isConnected) return const Left(NetworkFailure());
+    try {
+      final response = await _dioClient.get('${ApiConstants.taches}/activites');
+      // L'enveloppe est { "data": [ ... ] } : _unwrap ne sert pas ici, il rend
+      // une Map et le cast échouerait sur une liste.
+      final raw = response.data;
+      final items = (raw is Map ? raw['data'] : raw) as List? ?? const [];
+      return Right(items
+          .map((e) => ActiviteDef.fromJson(e as Map<String, dynamic>))
+          .toList());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur de données: $e'));
+    }
+  }
 
   Future<Either<Failure, List<TaskModel>>> getTasks({
     int page = 1,
@@ -52,6 +73,10 @@ class TaskService {
           'description': task.description,
           'objectifId': task.objectifId,
           'pieceJointeUrl': task.pieceJointeUrl,
+          // Module « Suivi des commerciaux » : le type porte le KPI, les champs
+          // sont validés côté serveur contre le catalogue de ce type.
+          'typeActivite': task.typeActivite,
+          'fields': task.fields,
         },
       );
       return Right(TaskModel.fromJson(_unwrap(response.data)));

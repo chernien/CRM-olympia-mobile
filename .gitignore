@@ -43,3 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ── Secrets Firebase : ne JAMAIS versionner ───────────────────────────────────
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+*service-account*.json
+firebase-adminsdk*.json
+
+# Signature de l'APK
+android/key.properties
+**/*.jks
+**/*.keystore

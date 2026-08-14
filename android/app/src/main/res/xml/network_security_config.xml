@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Autorisation de trafic NON chiffré, limitée à olyhub.net.
+
+  Android bloque le HTTP en clair depuis l'API 28. Le serveur du client ne porte pas
+  encore de certificat : sans cette exception, l'application se connecterait à
+  http://olyhub.net/api et échouerait sur « CLEARTEXT communication not permitted »,
+  sans message compréhensible pour l'utilisateur.
+
+  L'exception est volontairement NOMINATIVE. La solution répandue —
+  android:usesCleartextTraffic="true" sur <application> — ouvrirait le HTTP vers
+  n'importe quel hôte, y compris un point d'accès Wi-Fi hostile capable d'intercepter
+  les jetons d'un commercial en déplacement. Ici, seul ce domaine est concerné ; tout
+  le reste du trafic reste obligatoirement chiffré.
+
+  À SUPPRIMER une fois le certificat HTTPS installé sur olyhub.net, en repassant
+  l'URL de l'API en https. Ce fichier est une béquille de mise en service, pas un
+  réglage définitif : tant qu'il est là, les mots de passe et les jetons circulent
+  en clair sur le réseau.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">olyhub.net</domain>
+    </domain-config>
+</network-security-config>

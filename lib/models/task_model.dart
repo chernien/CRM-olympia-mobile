@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/utils/server_date.dart';
+
 class TaskModel extends Equatable {
   final String? id;
   final String codeClient;
@@ -12,8 +14,19 @@ class TaskModel extends Equatable {
   final String? pieceJointeUrl;
   final String? commercialId;
   final String? commercialNom;
-  final String? numero; // auto-generated
+  final String? numero; // auto-generated — c'est LA « référence » de l'activité
   final DateTime? createdAt; // the task date (real creation time)
+
+  /// Type d'activité terrain (`visite_revendeur`…). Null pour les tâches
+  /// enregistrées avant le module « Suivi des commerciaux ».
+  final String? typeActivite;
+  final String? typeActiviteLabel;
+
+  /// Valeurs saisies pour ce type, clefées par nom de champ du catalogue.
+  final Map<String, dynamic> fields;
+  final String? heureArrivee;
+  final String? heureDepart;
+  final int? dureeMinutes;
 
   const TaskModel({
     this.id,
@@ -29,6 +42,12 @@ class TaskModel extends Equatable {
     this.commercialNom,
     this.numero,
     this.createdAt,
+    this.typeActivite,
+    this.typeActiviteLabel,
+    this.fields = const {},
+    this.heureArrivee,
+    this.heureDepart,
+    this.dureeMinutes,
   });
 
   factory TaskModel.fromJson(Map<String, dynamic> json) => TaskModel(
@@ -44,9 +63,14 @@ class TaskModel extends Equatable {
         commercialId: json['commercialId']?.toString(),
         commercialNom: json['commercialNom'] as String?,
         numero: json['numero'] as String?,
-        createdAt: json['createdAt'] != null
-            ? DateTime.tryParse(json['createdAt'].toString())
-            : null,
+        // UTC sans `Z` côté backend : ServerDate rétablit le fuseau (voir la classe).
+        createdAt: ServerDate.tryParse(json['createdAt']),
+        typeActivite: json['typeActivite'] as String?,
+        typeActiviteLabel: json['typeActiviteLabel'] as String?,
+        fields: (json['formData'] as Map?)?.cast<String, dynamic>() ?? const {},
+        heureArrivee: json['heureArrivee'] as String?,
+        heureDepart: json['heureDepart'] as String?,
+        dureeMinutes: (json['dureeMinutes'] as num?)?.toInt(),
       );
 
   @override

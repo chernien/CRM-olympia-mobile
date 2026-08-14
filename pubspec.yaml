@@ -1,7 +1,12 @@
 name: olympia_app
 description: "Application Commerciale B2B - Olympia"
 publish_to: 'none'
-version: 1.0.0+1
+# Le nombre après « + » est le versionCode Android. Android REFUSE toute installation
+# dont le versionCode est inférieur ou égal à celui déjà présent : il doit donc croître
+# à chaque livraison, sans exception. Des APK ont circulé en 2001 alors que le projet
+# déclarait 1 — d'où un « INSTALL_FAILED_VERSION_DOWNGRADE » sur le téléphone de test.
+# On repart au-dessus du plus haut numéro connu.
+version: 1.0.0+2002
 
 environment:
   sdk: ^3.10.4
@@ -44,17 +49,26 @@ dependencies:
   cached_network_image: ^3.4.1
 
   # Notifications
+  # FCM est le SEUL transport push du mobile : un WebSocket ne survit pas à la
+  # fermeture de l'application, or le commercial est sur le terrain.
+  # L'app démarre sans google-services.json (initialisation protégée par try/catch).
+  firebase_core: ^4.4.0
+  firebase_messaging: ^16.4.3
   flutter_local_notifications: ^21.0.0
 
   # Loading & Feedback
   shimmer: ^3.0.0
-  fluttertoast: ^9.0.0
   flutter_svg: ^2.2.4
   country_code_picker: ^3.4.1
   confetti: ^0.8.0
+  connectivity_plus: ^6.1.5
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  # Sonde sur téléphone réel : integration_test/notification_probe_test.dart
+  # déclenche le chemin d'affichage FCM sans dépendre de la livraison Google.
+  integration_test:
     sdk: flutter
   flutter_launcher_icons: ^0.13.1
   flutter_lints: ^6.0.0
@@ -72,7 +86,15 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo-360.png"
+  # iOS et Android ancien : fond OPAQUE obligatoire. iOS refuse la transparence —
+  # une zone transparente y devient noire.
+  image_path: "assets/images/olyhub-icone.png"
+  # Android 8+ : icone adaptative. Le lanceur applique SA forme (cercle, squircle,
+  # goutte) sur l'avant-plan pose sur le fond. L'anneau seul, sans le carre bleu.
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/olyhub-icone-avant-plan.png"
+  # L'App Store refuse tout canal alpha, meme entierement opaque.
+  remove_alpha_ios: true
   min_sdk_android: 21
 
 flutter_native_splash:

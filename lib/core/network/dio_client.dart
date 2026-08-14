@@ -133,12 +133,17 @@ class DioClient {
     }
   }
 
+  /// [options] permet à un appel de resserrer ses propres délais sans toucher
+  /// aux autres — la recherche type-ahead abandonne après 8 s là où une
+  /// soumission de demande garde les 30 s du client. Facultatif : les appelants
+  /// existants gardent exactement le comportement d'avant.
   Future<Response> get(
     String path, {
     Map<String, dynamic>? queryParameters,
+    Options? options,
   }) async {
     try {
-      return await _dio.get(path, queryParameters: queryParameters);
+      return await _dio.get(path, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleDioError(e);
     }

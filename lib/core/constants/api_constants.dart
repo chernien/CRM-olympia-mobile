@@ -1,28 +1,39 @@
 class ApiConstants {
   ApiConstants._();
 
-  /// Base URL of the .NET backend (dev = HTTP profile on `localhost:5000`).
+  /// Adresse du backend .NET. Par défaut : le SERVEUR DE PRODUCTION.
   ///
-  /// We use `localhost` everywhere. On Android (USB phone OR emulator) the
-  /// device reaches the PC's backend through an adb reverse tunnel:
-  ///   adb reverse tcp:5000 tcp:5000
-  /// so `localhost:5000` on the device is forwarded to the PC over USB — no LAN
-  /// IP and no firewall rule needed. Web/desktop hit localhost directly.
+  /// Le défaut vise la production parce que c'est le cas d'usage courant — un APK
+  /// remis aux commerciaux doit fonctionner sans qu'on ait pensé à passer un
+  /// paramètre de compilation. Un oubli donnerait sinon une application qui cherche
+  /// un serveur sur le téléphone lui-même, avec un message d'erreur incompréhensible
+  /// pour l'utilisateur.
   ///
-  /// Override for a real server with:
-  ///   flutter run --dart-define=API_BASE_URL=https://api.olympia.ma/api
+  /// Pour travailler en LOCAL, surcharger explicitement :
+  ///   flutter run --dart-define=API_BASE_URL=http://localhost:5063/api
+  /// Sur un téléphone branché en USB, « localhost » désigne le TÉLÉPHONE : il faut
+  /// ouvrir le tunnel adb au préalable, sinon rien ne répond —
+  ///   adb reverse tcp:5063 tcp:5063
+  ///
+  /// En clair (http) et non https tant que le certificat n'est pas installé sur
+  /// olyhub.net ; l'exception est déclarée dans network_security_config.xml et
+  /// limitée à ce domaine. À repasser en https dès que le certificat existe.
   static String get baseUrl {
     const fromEnv = String.fromEnvironment('API_BASE_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
-    return 'http://localhost:5000/api';
+    return 'http://olyhub.net/api';
   }
 
   // Auth
   static const String login = '/auth/login';
   static const String refreshToken = '/auth/refresh';
+  static const String changePassword = '/auth/change-password';
 
   // Dashboard — one rich endpoint; ?periode=month|quarter
   static const String dashboardStats = '/dashboard/stats';
+
+  // CA split by article category (Intérieur | Extérieur | Olybat)
+  static const String dashboardCaCategories = '/dashboard/ca-categories';
 
   // Tâches clients
   static const String taches = '/taches';
@@ -31,11 +42,14 @@ class ApiConstants {
   // Demandes (9 types)
   static const String demandes = '/demandes';
   static const String demandeDetail = '/demandes/{id}';
-  static const String demandeTypes = '/demandes/types';
 
-  // Clients (Divalto)
-  static const String clients = '/clients';
+  // Recherches Divalto (autocomplétion des formulaires de demandes)
   static const String clientSearch = '/clients/search';
+  static const String articleSearch = '/articles/search';
+
+  /// Techniciens enregistrés dans l'application (liste fermée, non paginée) —
+  /// alimente les champs `source: 'technicien'` du schéma de formulaire.
+  static const String techniciens = '/techniciens';
 
   // Objectifs (attainment for the current commercial)
   static const String objectifsProgress = '/objectifs/progress';
@@ -44,11 +58,15 @@ class ApiConstants {
   // Upload
   static const String upload = '/upload';
 
-  // Notifications
+  // Notifications (REST = le contrat ; FCM n'est qu'un réveil)
   static const String notifications = '/notifications';
+  static const String notificationLu = '/notifications/{id}/lu';
+  static const String notificationsToutLu = '/notifications/tout-lu';
+
+  /// Enregistrement / suppression du jeton FCM de cet appareil.
+  static const String notificationAppareils = '/notifications/appareils';
 
   // Profile
-  static const String profile = '/profile';
 
   // Timeouts
   static const int connectTimeout = 30000;

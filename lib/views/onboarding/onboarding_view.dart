@@ -15,12 +15,14 @@ class _OnboardingViewState extends State<OnboardingView> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  static const _pages = [
+  // Tints are derived from the brand palette instead of hand-picked hex values,
+  // so the onboarding illustrations stay in step with AppColors.
+  static final _pages = [
     _OnboardingPage(
       icon: Icons.route_rounded,
       iconColor: AppColors.primary,
-      bgColor: Color(0xFFE8F0F8),
-      accentColor: Color(0xFF1E3A5F),
+      bgColor: AppColors.tint(AppColors.primary),
+      accentColor: AppColors.deepen(AppColors.primary),
       title: 'Gérez vos visites\nterrain',
       subtitle:
           'Planifiez et suivez toutes vos tâches sur le terrain. '
@@ -29,22 +31,24 @@ class _OnboardingViewState extends State<OnboardingView> {
     _OnboardingPage(
       icon: Icons.assignment_rounded,
       iconColor: AppColors.secondary,
-      bgColor: Color(0xFFE6F4F3),
-      accentColor: Color(0xFF2D5F5C),
+      bgColor: AppColors.tint(AppColors.secondary),
+      accentColor: AppColors.deepen(AppColors.secondary),
       title: 'Traitez vos\ndemandes clients',
+      // The backend defines 8 demande types, not 9 (see DemandeType enum).
       subtitle:
-          'Créez et suivez vos 9 types de demandes commerciales : échantillons, '
+          'Créez et suivez vos demandes commerciales : échantillons, '
           'réclamations, nouveaux clients et bien plus encore.',
     ),
     _OnboardingPage(
       icon: Icons.bar_chart_rounded,
-      iconColor: Color(0xFFF59E0B),
-      bgColor: Color(0xFFFDF6E3),
-      accentColor: Color(0xFF92640A),
+      iconColor: AppColors.warning,
+      bgColor: AppColors.tint(AppColors.warning),
+      accentColor: AppColors.deepen(AppColors.warning),
       title: 'Analysez vos\nperformances',
       subtitle:
           'Consultez votre chiffre d\'affaires mensuel et trimestriel. '
-          'Visualisez vos segments Intern, Extern et Olybat d\'un seul coup d\'œil.',
+          // Matches the labels the dashboard actually shows.
+          'Visualisez vos catégories Intérieur, Extérieur et Olybat d\'un seul coup d\'œil.',
     ),
   ];
 
@@ -91,10 +95,13 @@ class _OnboardingViewState extends State<OnboardingView> {
                   duration: const Duration(milliseconds: 200),
                   child: TextButton(
                     onPressed: isLast ? null : _complete,
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(64, 44),
+                    ),
                     child: const Text(
                       'Passer',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: AppColors.textMuted,
                         fontWeight: FontWeight.w500,
                         fontSize: 15,
                       ),
@@ -190,14 +197,20 @@ class _PageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
+    // Fixed 260 dp illustration + fixed gaps overflowed on short screens and at
+    // large system font sizes. The column now scrolls instead of clipping, and
+    // still centres whenever there is room.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
+          child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Illustration area
           _IllustrationBox(page: page),
-          const SizedBox(height: 48),
+          const SizedBox(height: 40),
 
           // Title
           Text(
@@ -222,11 +235,13 @@ class _PageContent extends StatelessWidget {
               fontFamily: 'Outfit',
               fontSize: 15,
               fontWeight: FontWeight.w400,
-              color: AppColors.textSecondary,
+              color: AppColors.textMuted,
               height: 1.6,
             ),
           ),
         ],
+          ),
+        ),
       ),
     );
   }

@@ -21,6 +21,10 @@ plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.11.1" apply false
     id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+    // Déclaré mais NON appliqué ici : le plugin échoue si google-services.json est
+    // absent, or le client n'a pas encore créé son projet Firebase. app/build.gradle.kts
+    // l'applique uniquement quand le fichier est présent.
+    id("com.google.gms.google-services") version "4.4.3" apply false
 }
 
 include(":app")

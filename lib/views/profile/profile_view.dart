@@ -9,12 +9,34 @@ import '../../viewmodels/auth_viewmodel.dart';
 class ProfileView extends ConsumerWidget {
   const ProfileView({super.key});
 
+  /// Every role gets its own French label. This used to collapse to
+  /// "Administrateur" or "Commercial", so a Technicien was shown as Commercial.
+  static String _roleLabel(String? role) {
+    return switch ((role ?? '').toLowerCase()) {
+      'admin' => 'Administrateur',
+      'commercial' => 'Commercial',
+      'technicien' => 'Technicien',
+      'directioncommerciale' => 'Direction commerciale',
+      'responsabletechnique' => 'Responsable technique',
+      'servicerecouvrement' => 'Service recouvrement',
+      '' => 'Utilisateur',
+      _ => role!,
+    };
+  }
+
+  /// Amounts are shown raw, never rounded — `toStringAsFixed(0)` was silently
+  /// rounding the objective (e.g. 499 999,6 → "500000").
+  static String _amount(double value) {
+    final s = value.toString();
+    return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     final user = authState.user;
     final name = user?.fullName ?? 'Utilisateur';
-    final roleLabel = user?.role == 'admin' ? 'Administrateur' : 'Commercial';
+    final roleLabel = _roleLabel(user?.role);
     final email = user?.email ?? 'Non renseigné';
     final objectifCA = user?.objectifCA;
     final initials = user != null && user.prenom.isNotEmpty && user.nom.isNotEmpty
@@ -23,10 +45,12 @@ class ProfileView extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Mon Profil')),
+      appBar: AppBar(title: const Text('Mon profil')),
       body: SafeArea(
         child: ListView(
-          padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 24.h),
+          // 100.h clears the floating bottom nav bar (extendBody is on in
+          // MainShell). At 24.h the logout button sat underneath it.
+          padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 100.h),
           children: [
             Container(
               padding: EdgeInsets.all(20.r),
@@ -66,7 +90,9 @@ class ProfileView extends ConsumerWidget {
                     alignment: WrapAlignment.center,
                     children: [
                       _buildDetailPill(Icons.work_outline, roleLabel),
-                      if (objectifCA != null) _buildDetailPill(Icons.trending_up, '${objectifCA.toStringAsFixed(0)} TND'),
+                      if (objectifCA != null)
+                        _buildDetailPill(
+                            Icons.trending_up, '${_amount(objectifCA)} TND'),
                     ],
                   ),
                 ],
@@ -90,21 +116,38 @@ class ProfileView extends ConsumerWidget {
                   _buildInfoRow(Icons.badge_outlined, 'Rôle', roleLabel),
                   if (objectifCA != null) ...[
                     _buildDivider(),
-                    _buildInfoRow(Icons.trending_up, 'Objectif CA', '${objectifCA.toStringAsFixed(0)} TND'),
+                    _buildInfoRow(Icons.trending_up, 'Objectif CA',
+                        '${_amount(objectifCA)} TND'),
                   ],
                 ],
               ),
             ),
             SizedBox(height: 28.h),
-            ElevatedButton.icon(
-              onPressed: () async {
-                await ref.read(authProvider.notifier).logout();
-                if (context.mounted) {
-                  context.go(RouteNames.login);
-                }
-              },
-              style: ElevatedButton.styleFrom(
+            OutlinedButton.icon(
+              onPressed: () => _showChangePassword(context),
+              style: OutlinedButton.styleFrom(
                 minimumSize: Size(double.infinity, 52.h),
+                side: BorderSide(color: AppColors.border),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+              ),
+              icon: Icon(Icons.lock_outline_rounded, size: 18.sp, color: AppColors.primary),
+              label: Text(
+                'Changer mon mot de passe',
+                style: TextStyle(
+                    fontSize: 16.sp, fontWeight: FontWeight.w600, color: AppColors.primary),
+              ),
+            ),
+            // Leaving the app is separated from the ordinary account actions and
+            // reads as destructive, instead of sharing the primary button style.
+            SizedBox(height: 28.h),
+            Divider(color: AppColors.border, height: 1),
+            SizedBox(height: 20.h),
+            OutlinedButton.icon(
+              onPressed: () => _confirmLogout(context, ref),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                minimumSize: Size(double.infinity, 52.h),
+                side: BorderSide(color: AppColors.error.withValues(alpha: 0.4)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
               ),
               icon: Icon(Icons.logout_rounded, size: 18.sp),
@@ -113,6 +156,44 @@ class ProfileView extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+
+  /// Signing out drops the session and any unsent work — confirm first.
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
+        title: const Text('Se déconnecter ?'),
+        content: const Text(
+          'Vous devrez saisir à nouveau vos identifiants pour revenir.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Se déconnecter'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(authProvider.notifier).logout();
+    if (context.mounted) context.go(RouteNames.login);
+  }
+
+  /// Bottom sheet letting the commercial change their own password.
+  void _showChangePassword(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _ChangePasswordSheet(),
     );
   }
 
@@ -147,12 +228,253 @@ class ProfileView extends ConsumerWidget {
         child: Icon(icon, color: AppColors.primary, size: 18.sp),
       ),
       title: Text(title, style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600)),
-      subtitle: Text(value, style: TextStyle(fontSize: 14.sp, color: AppColors.textSecondary)),
+      subtitle: Text(value, style: TextStyle(fontSize: 14.sp, color: AppColors.textMuted)),
       contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 3.h),
     );
   }
 
   Widget _buildDivider() {
     return Divider(height: 1, indent: 14.w, endIndent: 14.w);
+  }
+}
+
+// ─── Changement de mot de passe (self-service) ────────────────────────────────
+
+class _ChangePasswordSheet extends ConsumerStatefulWidget {
+  const _ChangePasswordSheet();
+
+  @override
+  ConsumerState<_ChangePasswordSheet> createState() => _ChangePasswordSheetState();
+}
+
+class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
+  final _current = TextEditingController();
+  final _next = TextEditingController();
+  final _confirm = TextEditingController();
+  // One toggle per field: a single shared flag revealed all three at once, and
+  // only the first field carried the control.
+  final Map<String, bool> _obscured = {
+    'current': true,
+    'next': true,
+    'confirm': true,
+  };
+  bool _saving = false;
+  String? _error;
+  bool _done = false;
+
+  @override
+  void dispose() {
+    _current.dispose();
+    _next.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() => _error = null);
+    if (_current.text.isEmpty) {
+      setState(() => _error = 'Saisissez votre mot de passe actuel.');
+      return;
+    }
+    if (_next.text == _current.text) {
+      setState(() => _error =
+          'Le nouveau mot de passe doit être différent de l\'actuel.');
+      return;
+    }
+    if (_next.text.length < 8) {
+      setState(() => _error = 'Le nouveau mot de passe doit contenir au moins 8 caractères.');
+      return;
+    }
+    if (_next.text != _confirm.text) {
+      setState(() => _error = 'Les deux mots de passe ne correspondent pas.');
+      return;
+    }
+
+    setState(() => _saving = true);
+    final res = await ref.read(authProvider.notifier).changePassword(
+          currentPassword: _current.text,
+          newPassword: _next.text,
+        );
+    if (!mounted) return;
+    setState(() => _saving = false);
+
+    res.fold(
+      (f) => setState(() => _error = f.message),
+      (_) => setState(() => _done = true),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottom),
+      child: Container(
+        padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 24.h),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44.w,
+                height: 4.h,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(4.r),
+                ),
+              ),
+            ),
+            SizedBox(height: 18.h),
+            if (_done) ...[
+              Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 54.sp, color: AppColors.success),
+                    SizedBox(height: 12.h),
+                    Text('Mot de passe modifié',
+                        style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w800)),
+                    SizedBox(height: 6.h),
+                    Text('Utilisez-le à votre prochaine connexion.',
+                        style: TextStyle(fontSize: 13.sp, color: AppColors.textMuted)),
+                    SizedBox(height: 20.h),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: Size(double.infinity, 50.h),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14.r)),
+                        ),
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text('Fermer',
+                            style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              Text('Changer mon mot de passe',
+                  style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w800)),
+              SizedBox(height: 4.h),
+              Text('Votre mot de passe actuel est demandé par sécurité.',
+                  style: TextStyle(fontSize: 12.sp, color: AppColors.textMuted)),
+              SizedBox(height: 18.h),
+              _field(_current, 'current', 'Mot de passe actuel'),
+              SizedBox(height: 16.h),
+              _field(_next, 'next', 'Nouveau mot de passe',
+                  helper: '8 caractères minimum.'),
+              SizedBox(height: 16.h),
+              _field(_confirm, 'confirm', 'Confirmer le nouveau mot de passe',
+                  action: TextInputAction.done),
+              if (_error != null) ...[
+                SizedBox(height: 12.h),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.error_outline_rounded, size: 16.sp, color: AppColors.error),
+                    SizedBox(width: 8.w),
+                    Expanded(
+                      child: Text(_error!,
+                          style: TextStyle(fontSize: 12.5.sp, color: AppColors.error)),
+                    ),
+                  ],
+                ),
+              ],
+              SizedBox(height: 20.h),
+              SizedBox(
+                width: double.infinity,
+                height: 52.h,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                  ),
+                  onPressed: _saving ? null : _submit,
+                  child: _saving
+                      ? SizedBox(
+                          width: 20.r,
+                          height: 20.r,
+                          child: const CircularProgressIndicator(
+                              strokeWidth: 2.4, color: Colors.white),
+                        )
+                      : Text('Valider',
+                          style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _field(
+    TextEditingController c,
+    String key,
+    String label, {
+    String? helper,
+    TextInputAction action = TextInputAction.next,
+  }) {
+    final obscure = _obscured[key] ?? true;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Visible label: the field name used to live in the placeholder only,
+        // so it vanished as soon as the user started typing.
+        Padding(
+          padding: EdgeInsets.only(bottom: 6.h, left: 4.w),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textMuted,
+            ),
+          ),
+        ),
+        TextField(
+          controller: c,
+          obscureText: obscure,
+          textInputAction: action,
+          autofillHints: const [AutofillHints.password],
+          decoration: InputDecoration(
+            prefixIcon: Icon(Icons.lock_outline_rounded, size: 18.sp),
+            suffixIcon: IconButton(
+              tooltip: obscure ? 'Afficher' : 'Masquer',
+              icon: Icon(
+                  obscure
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  size: 18.sp),
+              onPressed: () => setState(() => _obscured[key] = !obscure),
+            ),
+            filled: true,
+            fillColor: AppColors.background,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14.r),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14.r),
+              borderSide: BorderSide(color: AppColors.border),
+            ),
+          ),
+        ),
+        if (helper != null)
+          Padding(
+            padding: EdgeInsets.only(top: 6.h, left: 4.w),
+            child: Text(
+              helper,
+              style: TextStyle(fontSize: 11.sp, color: AppColors.textMuted),
+            ),
+          ),
+      ],
+    );
   }
 }

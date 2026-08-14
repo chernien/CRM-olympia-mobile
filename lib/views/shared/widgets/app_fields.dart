@@ -7,6 +7,31 @@ import '../../../core/theme/app_colors.dart';
 /// Shared field style matching the login screen design.
 /// All forms should use these instead of raw TextFormField.
 
+/// Met la saisie en CAPITALES au fil de la frappe.
+///
+/// Utilisé sur les champs client et produit : les données de l'ERP y sont déjà en
+/// capitales, et une demande saisie « societe 2m » à côté d'une autre saisie
+/// « SOCIETE 2M » donne deux libellés différents pour le même client dans les
+/// listes et les exports.
+///
+/// La sélection est recalculée plutôt que reprise telle quelle : passer en
+/// capitales peut changer la longueur du texte sur certains caractères, et une
+/// sélection hors bornes fait planter le champ.
+class UpperCaseTextFormatter extends TextInputFormatter {
+  const UpperCaseTextFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue avant, TextEditingValue apres) {
+    final texte = apres.text.toUpperCase();
+    final position = apres.selection.baseOffset.clamp(0, texte.length);
+    return TextEditingValue(
+      text: texte,
+      selection: TextSelection.collapsed(offset: position),
+      composing: TextRange.empty,
+    );
+  }
+}
+
 // ─── Text Field ──────────────────────────────────────────────────────────────
 
 class AppTextField extends StatelessWidget {
@@ -179,11 +204,15 @@ class AppDateField extends StatelessWidget {
           color: controller.text.isEmpty ? AppColors.textSecondary : color,
           size: 20.sp,
         ),
+        // Was a bare 18 dp icon with a GestureDetector — well under the
+        // touch-target minimum and unnamed to assistive tech.
         suffixIcon: controller.text.isEmpty
             ? null
-            : GestureDetector(
-                onTap: () => controller.clear(),
-                child: Icon(Icons.close, color: AppColors.textSecondary, size: 18.sp),
+            : IconButton(
+                tooltip: 'Effacer la date',
+                onPressed: () => controller.clear(),
+                icon: Icon(Icons.close,
+                    color: AppColors.textSecondary, size: 18.sp),
               ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20.r),
@@ -227,6 +256,10 @@ class AppDropdownField<T> extends StatelessWidget {
   final bool required;
   final String? requiredMessage;
 
+  /// When false the control is inert and reads as disabled, rather than
+  /// swallowing taps while still looking interactive.
+  final bool enabled;
+
   const AppDropdownField({
     super.key,
     required this.value,
@@ -238,6 +271,7 @@ class AppDropdownField<T> extends StatelessWidget {
     this.validator,
     this.required = true,
     this.requiredMessage,
+    this.enabled = true,
   });
 
   @override
@@ -262,20 +296,28 @@ class AppDropdownField<T> extends StatelessWidget {
           children: [
             InkWell(
               borderRadius: BorderRadius.circular(20.r),
-              onTap: () async {
-                final picked = await _showPickerSheet(context, state.value, color);
-                if (picked != null) {
-                  state.didChange(picked);
-                  onChanged(picked);
-                }
-              },
+              onTap: !enabled
+                  ? null
+                  : () async {
+                      final picked =
+                          await _showPickerSheet(context, state.value, color);
+                      if (picked != null) {
+                        state.didChange(picked);
+                        onChanged(picked);
+                      }
+                    },
               child: InputDecorator(
                 decoration: InputDecoration(
+                  enabled: enabled,
                   hintText: hint,
                   prefixIcon: prefixIcon != null
                       ? Icon(prefixIcon, color: AppColors.textSecondary, size: 20.sp)
                       : null,
-                  suffixIcon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary, size: 22.sp),
+                  suffixIcon: Icon(Icons.keyboard_arrow_down_rounded,
+                      color: enabled
+                          ? AppColors.textSecondary
+                          : AppColors.borderStrong,
+                      size: 22.sp),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20.r),
                     borderSide: BorderSide(color: color, width: 2),
@@ -490,6 +532,55 @@ Future<void> pickDate(
   }
 }
 
+/// Sélecteur d'heure, pendant de [pickDate] pour les activités terrain (heure
+/// d'arrivée / de départ).
+///
+/// Écrit TOUJOURS au format « HH:mm » sur 24 h, quelle que soit la locale du
+/// téléphone : c'est le format que l'API valide et stocke. Un affichage AM/PM
+/// remonterait une chaîne que le serveur refuserait.
+Future<void> pickTime(
+  BuildContext context,
+  TextEditingController controller,
+) async {
+  final actuelle = _parseHHmm(controller.text) ?? TimeOfDay.now();
+  final heure = await showTimePicker(
+    context: context,
+    initialTime: actuelle,
+    builder: (context, child) => Theme(
+      data: Theme.of(context).copyWith(
+        colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: AppColors.surface,
+            ),
+        dialogTheme: DialogThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24.r)),
+        ),
+      ),
+      // Force le cadran 24 h : sans ça, un téléphone en locale anglaise propose
+      // AM/PM et l'utilisateur croit choisir 07:00 en sélectionnant 7 PM.
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    ),
+  );
+  if (heure != null && context.mounted) {
+    controller.text = '${heure.hour.toString().padLeft(2, '0')}:'
+        '${heure.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+/// Relit « HH:mm » pour rouvrir le sélecteur sur la valeur déjà saisie.
+TimeOfDay? _parseHHmm(String raw) {
+  final parts = raw.split(':');
+  if (parts.length < 2) return null;
+  final h = int.tryParse(parts[0]);
+  final m = int.tryParse(parts[1]);
+  if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return TimeOfDay(hour: h, minute: m);
+}
+
 // ─── Step Indicator ───────────────────────────────────────────────────────────
 
 class FormStepIndicator extends StatelessWidget {
@@ -536,7 +627,7 @@ class FormStepIndicator extends StatelessWidget {
                                 ? color
                                 : isActive
                                     ? color.withValues(alpha: 0.1)
-                                    : const Color(0xFFF4F7FC),
+                                    : AppColors.inputFill,
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: isDone || isActive ? color : AppColors.border,
@@ -621,7 +712,7 @@ class FormBottomNav extends StatelessWidget {
           children: [
             Container(
               height: 52.h,
-              decoration: BoxDecoration(color: const Color(0xFFF4F7FC), borderRadius: BorderRadius.circular(16.r)),
+              decoration: BoxDecoration(color: AppColors.inputFill, borderRadius: BorderRadius.circular(16.r)),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
