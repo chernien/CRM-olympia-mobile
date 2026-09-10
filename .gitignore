@@ -55,3 +55,8 @@ firebase-adminsdk*.json
 android/key.properties
 **/*.jks
 **/*.keystore
+
+# Outillage local (non publie)
+.claude/
+CLAUDE.md
+docs/superpowers/
