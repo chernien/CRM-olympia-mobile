@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SURCHARGE RÉSERVÉE AUX BUILDS DEBUG.
+
+  Android fusionne les ressources par variante : ce fichier remplace celui de
+  src/main UNIQUEMENT pour la variante debug. La configuration de RELEASE reste
+  donc celle de src/main, strictement limitée à olyhub.net. Rien de ce qui est
+  ouvert ici n'atteint l'application livrée aux commerciaux.
+
+  À quoi ça sert : tester une version sur le téléphone AVANT de déployer le
+  backend. L'application doit alors parler à l'API qui tourne sur le poste de
+  développement, jointe par son adresse locale, via l'option de compilation
+  API_BASE_URL (voir ApiConstants.baseUrl).
+
+  Sans cette exception, l'appel échouerait sur « CLEARTEXT communication not
+  permitted », un message que rien dans l'interface ne saurait expliquer.
+
+  Les adresses sont NOMINATIVES, comme dans src/main : ouvrir le HTTP à tous les
+  hôtes, même en debug, resterait une mauvaise habitude qu'on finit par recopier
+  dans la release.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Le serveur du client, comme en release. -->
+        <domain includeSubdomains="true">olyhub.net</domain>
+
+        <!-- Poste de développement : Wi-Fi et Ethernet. -->
+        <domain includeSubdomains="false">192.168.100.186</domain>
+        <domain includeSubdomains="false">10.212.134.204</domain>
+
+        <!-- Hôte vu depuis l'émulateur Android, et boucle locale. -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

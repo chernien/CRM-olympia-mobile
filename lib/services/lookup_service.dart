@@ -40,6 +40,9 @@ class LookupService {
   /// Dispatches on the schema's `source` value — the fronts never hard-code which
   /// field talks to which table. Only the SEARCHABLE sources are routed here;
   /// `technicien` is a closed list fetched whole (see [fetchTechniciens]).
+  ///
+  /// `articleref` interroge la même table que `article`, mais garde la
+  /// référence dans [ErpRef.code] : le champ stockera REF seul.
   Future<Either<Failure, List<ErpRef>>> searchBySource(String source, String query,
       {int limit = 20}) {
     switch (source) {
@@ -47,8 +50,81 @@ class LookupService {
         return searchClients(query, limit: limit);
       case 'article':
         return searchArticles(query, limit: limit);
+      case 'articleref':
+        return _search(ApiConstants.articleSearch, query, limit, ErpRef.fromArticleRefJson);
       default:
         return Future.value(const Right(<ErpRef>[]));
+    }
+  }
+
+  /// Liste SANS saisie pour le bouton « ouvrir la liste » (réunion client du
+  /// 10/09/2026). Clients : le portefeuille du commercial connecté, décidé par
+  /// l'API d'après le jeton. Articles : les premières références du dossier.
+  Future<Either<Failure, List<ErpRef>>> browseBySource(String source) {
+    switch (source) {
+      case 'client':
+        return _list(ApiConstants.clientsListe, ErpRef.fromClientJson);
+      case 'article':
+        return _list(ApiConstants.articlesListe, ErpRef.fromArticleJson);
+      case 'articleref':
+        return _list(ApiConstants.articlesListe, ErpRef.fromArticleRefJson);
+      default:
+        return Future.value(const Right(<ErpRef>[]));
+    }
+  }
+
+  /// Teintes (TAR.SREF1) de la référence — première marche de la cascade des
+  /// lignes d'échantillon.
+  Future<Either<Failure, List<String>>> fetchTeintes(String reference) =>
+      _strings(ApiConstants.articleTeintes, {'ref': reference});
+
+  /// Bases (TAR.SREF2) du couple référence + teinte. La valeur VIDE peut faire
+  /// partie de la liste : « sans base » est un choix légitime.
+  Future<Either<Failure, List<String>>> fetchBases(String reference, String teinte) =>
+      _strings(ApiConstants.articleBases, {'ref': reference, 'teinte': teinte});
+
+  Future<Either<Failure, List<ErpRef>>> _list(
+    String path,
+    ErpRef Function(Map<String, dynamic>) parse,
+  ) async {
+    if (!await _networkInfo.isConnected) return const Left(NetworkFailure());
+    try {
+      final response = await _dioClient.get(
+        path,
+        options: Options(
+          receiveTimeout: const Duration(seconds: 8),
+          sendTimeout: const Duration(seconds: 8),
+        ),
+      );
+      final list = (response.data['data'] ?? response.data) as List;
+      return Right(list.map((e) => parse(e as Map<String, dynamic>)).toList());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur de données: $e'));
+    }
+  }
+
+  Future<Either<Failure, List<String>>> _strings(
+    String path,
+    Map<String, dynamic> query,
+  ) async {
+    if (!await _networkInfo.isConnected) return const Left(NetworkFailure());
+    try {
+      final response = await _dioClient.get(
+        path,
+        queryParameters: query,
+        options: Options(
+          receiveTimeout: const Duration(seconds: 8),
+          sendTimeout: const Duration(seconds: 8),
+        ),
+      );
+      final list = (response.data['data'] ?? response.data) as List;
+      return Right(list.map((e) => e.toString()).toList());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(message: 'Erreur de données: $e'));
     }
   }
 

@@ -29,6 +29,14 @@ class ErpRef extends Equatable {
         code: null, // the reference is already inside the label
       );
 
+  /// Comme [fromArticleJson], mais garde la référence dans [code] : la source
+  /// `articleref` AFFICHE « REF DES » et STOCKE la référence seule (réunion
+  /// client du 10/09/2026) — c'est elle qui pilote la cascade teinte/base.
+  factory ErpRef.fromArticleRefJson(Map<String, dynamic> json) => ErpRef(
+        label: json['libelle'] as String? ?? '',
+        code: json['ref'] as String?,
+      );
+
   /// `{ id, nom }` — a technician is displayed AND stored by name, like the ERP
   /// refs above, so the demande field keeps holding a plain string. The id is kept
   /// as the option key only; it never reaches the stored form data.

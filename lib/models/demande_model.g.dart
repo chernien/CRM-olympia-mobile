@@ -27,6 +27,7 @@ DemandeModel _$DemandeModelFromJson(Map<String, dynamic> json) => DemandeModel(
       ?.map((e) => DemandeHistorique.fromJson(e as Map<String, dynamic>))
       .toList(),
   commentaire: json['commentaire'] as String?,
+  numeroCommande: json['numeroCommande'] as String?,
   createdAt: _dateFromJson(json['createdAt']),
   updatedAt: _dateFromJson(json['updatedAt']),
 );
@@ -49,6 +50,7 @@ Map<String, dynamic> _$DemandeModelToJson(DemandeModel instance) =>
       'piecesJointes': instance.piecesJointes,
       'historique': instance.historique,
       'commentaire': instance.commentaire,
+      'numeroCommande': instance.numeroCommande,
       'createdAt': _dateToJson(instance.createdAt),
       'updatedAt': _dateToJson(instance.updatedAt),
     };

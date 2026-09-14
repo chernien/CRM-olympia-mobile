@@ -6,7 +6,12 @@ publish_to: 'none'
 # à chaque livraison, sans exception. Des APK ont circulé en 2001 alors que le projet
 # déclarait 1 — d'où un « INSTALL_FAILED_VERSION_DOWNGRADE » sur le téléphone de test.
 # On repart au-dessus du plus haut numéro connu.
-version: 1.0.0+2002
+# 1.1.0 = ce que lit l'utilisateur (versionName).
+# +2003  = compteur TECHNIQUE (versionCode), jamais affiche. Android s'en sert
+#          pour reconnaitre une mise a jour : il doit toujours AUGMENTER, sinon
+#          l'installation par-dessus l'application existante est refusee
+#          (« Application non installee »). Le precedent APK livre portait 2002.
+version: 1.1.0+2003
 
 environment:
   sdk: ^3.10.4
@@ -59,6 +64,10 @@ dependencies:
   # Loading & Feedback
   shimmer: ^3.0.0
   flutter_svg: ^2.2.4
+  # Lit la version et le numero de build depuis ce pubspec au moment de la
+  # compilation. Volontairement lu et non recopie a la main : une version
+  # ecrite en dur dans le code finit toujours par mentir apres un oubli.
+  package_info_plus: ^8.1.2
   country_code_picker: ^3.4.1
   confetti: ^0.8.0
   connectivity_plus: ^6.1.5

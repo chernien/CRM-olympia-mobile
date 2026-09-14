@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../../core/constants/api_constants.dart';
 import '../../core/routing/route_names.dart';
 import '../../core/theme/app_colors.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -19,6 +21,8 @@ class ProfileView extends ConsumerWidget {
       'directioncommerciale' => 'Direction commerciale',
       'responsabletechnique' => 'Responsable technique',
       'servicerecouvrement' => 'Service recouvrement',
+      'prod' => 'Prod',
+      'adv' => 'ADV',
       '' => 'Utilisateur',
       _ => role!,
     };
@@ -137,6 +141,8 @@ class ProfileView extends ConsumerWidget {
                     fontSize: 16.sp, fontWeight: FontWeight.w600, color: AppColors.primary),
               ),
             ),
+            SizedBox(height: 28.h),
+            const _AProposBloc(),
             // Leaving the app is separated from the ordinary account actions and
             // reads as destructive, instead of sharing the primary button style.
             SizedBox(height: 28.h),
@@ -475,6 +481,121 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Bloc « À propos » du profil.
+///
+/// Volontairement un bloc et non un module : neuf commerciaux utilisent quatre
+/// écrans, un onglet de plus pour une information consultée deux fois par an
+/// coûterait plus qu'il ne rapporte. Le profil est l'endroit où l'on cherche ce
+/// genre de renseignement.
+///
+/// Ce qui y figure sert au SUPPORT, pas à la présentation : l'application se
+/// distribue par APK, sans page de magasin ni mise à jour automatique, donc
+/// personne ne peut dire sur quelle version tourne un téléphone. « Vous êtes en
+/// quelle version ? » est la première question d'un dépannage, et jusqu'ici
+/// elle n'avait pas de réponse.
+///
+/// La version est LUE du pubspec au moment de la compilation, jamais recopiée :
+/// un numéro écrit en dur survit à la livraison suivante et ment.
+class _AProposBloc extends StatefulWidget {
+  const _AProposBloc();
+
+  @override
+  State<_AProposBloc> createState() => _AProposBlocState();
+}
+
+class _AProposBlocState extends State<_AProposBloc> {
+  PackageInfo? _info;
+
+  @override
+  void initState() {
+    super.initState();
+    _charger();
+  }
+
+  Future<void> _charger() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) setState(() => _info = info);
+    } catch (_) {
+      // Rien à faire : le bloc affiche « version indisponible » plutôt que de
+      // faire échouer l'écran profil pour un renseignement d'appoint.
+      if (mounted) setState(() => _info = null);
+    }
+  }
+
+  /// Hôte du serveur interrogé — « je ne vois pas les bonnes données » se
+  /// diagnostique d'abord ici. On n'affiche que l'hôte, pas le chemin complet.
+  String get _serveur {
+    final uri = Uri.tryParse(ApiConstants.baseUrl);
+    if (uri == null || uri.host.isEmpty) return ApiConstants.baseUrl;
+    // hasPort n'est vrai que si un port a été écrit explicitement : olyhub.net
+    // reste « olyhub.net », une API locale devient « 192.168.x.y:5199 ».
+    return uri.hasPort ? '${uri.host}:${uri.port}' : uri.host;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // La version SEULE : le numero de build est un compteur technique pour
+    // Android, il n'apprend rien a un commercial et brouille la lecture.
+    final version = _info == null ? 'Version indisponible' : _info!.version;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('À propos',
+            style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w700)),
+        SizedBox(height: 12.h),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18.r),
+            border: Border.all(color: AppColors.border),
+            color: AppColors.surface,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              _ligne(Icons.info_outline_rounded, 'Version', version),
+              Divider(color: AppColors.border, height: 1, indent: 60.w),
+              _ligne(Icons.dns_outlined, 'Serveur', _serveur),
+              Divider(color: AppColors.border, height: 1, indent: 60.w),
+              _ligne(Icons.support_agent_outlined, 'Support',
+                  'Contactez votre administrateur OlyHub'),
+            ],
+          ),
+        ),
+        SizedBox(height: 10.h),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4.w),
+          child: Text(
+            "Communiquez le numéro de version en cas de problème : il indique "
+            "si votre application est à jour.",
+            style: TextStyle(fontSize: 12.sp, color: AppColors.textMuted),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _ligne(IconData icon, String titre, String valeur) {
+    return ListTile(
+      leading: Container(
+        width: 34.w,
+        height: 34.w,
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10.r),
+        ),
+        child: Icon(icon, color: AppColors.primary, size: 18.sp),
+      ),
+      title: Text(titre,
+          style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600)),
+      subtitle: Text(valeur,
+          style: TextStyle(fontSize: 14.sp, color: AppColors.textMuted)),
+      contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 3.h),
     );
   }
 }

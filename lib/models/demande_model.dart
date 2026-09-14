@@ -39,6 +39,12 @@ class DemandeModel extends Equatable {
   final List<String>? piecesJointes;
   final List<DemandeHistorique>? historique;
   final String? commentaire;
+
+  /// Numéro de commande reçu de l'ERP, écrit en base par Divalto (réunion
+  /// client du 11/09/2026) — jamais saisi dans l'application. Null tant qu'il
+  /// n'est pas arrivé : la phase « Confirmation ADV » reste alors bloquée.
+  final String? numeroCommande;
+
   @JsonKey(fromJson: _dateFromJson, toJson: _dateToJson)
   final DateTime? createdAt;
   @JsonKey(fromJson: _dateFromJson, toJson: _dateToJson)
@@ -61,6 +67,7 @@ class DemandeModel extends Equatable {
     this.piecesJointes,
     this.historique,
     this.commentaire,
+    this.numeroCommande,
     this.createdAt,
     this.updatedAt,
   });

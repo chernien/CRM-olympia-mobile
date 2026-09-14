@@ -49,16 +49,32 @@ class _DemandeDetailViewState extends ConsumerState<DemandeDetailView> {
     super.dispose();
   }
 
+  /// Les valeurs réellement affichées et soumises : celles proposées par le
+  /// schéma, recouvertes par ce que l'utilisateur a saisi.
+  ///
+  /// Fusionner ici plutôt que de semer `_phaseValues` au chargement évite deux
+  /// pièges : écraser une saisie en cours quand la demande est rechargée, et
+  /// surtout PERDRE une valeur pré-remplie que l'utilisateur n'a pas touchée —
+  /// elle ne serait alors jamais envoyée.
+  Map<String, dynamic> _effectiveValues(DemandeModel demande) {
+    final phase = demande.phaseCourante;
+    if (phase == null) return _phaseValues;
+    final seed = seedValues(phase.champs, demande.numeroCommande);
+    if (seed.isEmpty) return _phaseValues;
+    return {...seed, ..._phaseValues};
+  }
+
   Future<void> _submitPhase(DemandeModel demande) async {
     final phase = demande.phaseCourante;
     if (phase == null) return;
-    final missing = missingRequired(phase.champs, _phaseValues);
+    final values = _effectiveValues(demande);
+    final missing = missingRequired(phase.champs, values);
     if (missing.isNotEmpty) {
       _snack('Champs requis : ${missing.join(', ')}', ok: false);
       return;
     }
-    final fields = fieldsForSubmit(phase.champs, _phaseValues);
-    final pieces = collectPieces(phase.champs, _phaseValues);
+    final fields = fieldsForSubmit(phase.champs, values);
+    final pieces = collectPieces(phase.champs, values);
     final updated = await ref.read(demandeListProvider.notifier).submitPhase(
           demande.id!,
           fields: fields,
@@ -509,7 +525,7 @@ class _DemandeDetailViewState extends ConsumerState<DemandeDetailView> {
           children: [
             DynamicForm(
               champs: phase.champs,
-              values: _phaseValues,
+              values: _effectiveValues(demande),
               onChanged: (v) => setState(() => _phaseValues = v),
             ),
             SizedBox(height: 14.h),

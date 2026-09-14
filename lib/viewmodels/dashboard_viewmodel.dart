@@ -169,6 +169,7 @@ class DashboardNotifier extends Notifier<DashboardState> {
               periode: o.periode,
               caRealise: o.caRealise,
               pct: o.pct,
+              repartie: o.repartie,
               celebrated: true,
             )
           else

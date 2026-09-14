@@ -27,6 +27,24 @@ List<String> missingRequired(List<FieldDef> champs, Map<String, dynamic> values)
   return out;
 }
 
+/// Valeurs proposées à l'OUVERTURE d'une phase, prises sur la demande elle-même
+/// (schéma : [FieldDef.prefill]). Aujourd'hui un seul cas —
+/// « numerocommandeerp » — qui reprend le numéro reçu de l'ERP et confirmé par
+/// l'ADV, pour que la production ne le recopie pas à la main (réunion client du
+/// 11/09/2026).
+///
+/// Le champ reste modifiable, et une demande sans numéro s'ouvre vide : un
+/// prefill est une proposition, jamais une contrainte.
+Map<String, dynamic> seedValues(List<FieldDef> champs, String? numeroCommande) {
+  final seed = <String, dynamic>{};
+  final numero = (numeroCommande ?? '').trim();
+  if (numero.isEmpty) return seed;
+  for (final f in champs) {
+    if (f.prefill == 'numerocommandeerp') seed[f.name] = numero;
+  }
+  return seed;
+}
+
 /// Flattens every File field's uploaded URLs into the phase-level piecesJointes.
 List<String> collectPieces(List<FieldDef> champs, Map<String, dynamic> values) {
   final urls = <String>[];
@@ -75,9 +93,23 @@ class _DynamicFormState extends ConsumerState<DynamicForm> {
   final Map<String, TextEditingController> _controllers = {};
 
   // Controller created once per field; its listener mirrors edits into values.
-  TextEditingController _ctrl(String name) => _controllers.putIfAbsent(name, () {
-        final c = TextEditingController(text: widget.values[name]?.toString() ?? '');
-        c.addListener(() => _set(name, c.text));
+  //
+  // Prend le CHAMP et non son nom : la réclamation porte la cascade TAR à plat
+  // dans le formulaire, donc changer « Produit réclamé » doit vider ses deux
+  // sous-références — exactement ce que fait [_rowCtrl] pour une ligne.
+  TextEditingController _ctrl(FieldDef f) => _controllers.putIfAbsent(f.name, () {
+        final c = TextEditingController(text: widget.values[f.name]?.toString() ?? '');
+        c.addListener(() {
+          if (f.source == 'articleref') {
+            final next = Map<String, dynamic>.from(widget.values)..[f.name] = c.text;
+            for (final other in widget.champs) {
+              if (other.source == 'teinte' || other.source == 'base') next[other.name] = '';
+            }
+            widget.onChanged(next);
+            return;
+          }
+          _set(f.name, c.text);
+        });
         return c;
       });
 
@@ -93,6 +125,16 @@ class _DynamicFormState extends ConsumerState<DynamicForm> {
           final current = _rows(f.name);
           if (i >= current.length) return;
           current[i][sf.name] = c.text;
+          // Cascade TAR : changer la référence invalide la teinte et la base de
+          // la même ligne — une teinte choisie pour une autre référence n'a
+          // aucun sens, on la vide plutôt que de la laisser mentir.
+          if (sf.source == 'articleref') {
+            for (final other in f.sub) {
+              if (other.source == 'teinte' || other.source == 'base') {
+                current[i][other.name] = '';
+              }
+            }
+          }
           _set(f.name, current);
         });
         return c;
@@ -102,6 +144,42 @@ class _DynamicFormState extends ConsumerState<DynamicForm> {
       ? List<Map<String, dynamic>>.from(
           (widget.values[name] as List).map((e) => Map<String, dynamic>.from(e as Map)))
       : <Map<String, dynamic>>[];
+
+  /// Champ frère du formulaire dont la SOURCE est [sourceKind], ou null.
+  /// La réclamation porte la cascade à plat là où l'échantillon la porte dans
+  /// les colonnes d'une ligne : deux voisinages, un seul repérage par source.
+  FieldDef? _flatCol(String sourceKind) {
+    for (final f in widget.champs) {
+      if (f.source == sourceKind) return f;
+    }
+    return null;
+  }
+
+  String _flatValue(String sourceKind) {
+    final col = _flatCol(sourceKind);
+    if (col == null) return '';
+    return (widget.values[col.name] ?? '').toString().trim();
+  }
+
+  /// Valeur de la colonne dont la SOURCE est [sourceKind] sur la ligne [i] —
+  /// la cascade TAR se repère par source, jamais par nom de champ : le schéma
+  /// reste la seule vérité.
+  /// Libellé de la colonne amont d'une ligne, pour nommer le champ à remplir
+  /// d'abord avec les mots du formulaire courant.
+  String _cascadeLabel(FieldDef f, String sourceKind) {
+    for (final s in f.sub) {
+      if (s.source == sourceKind) return s.label;
+    }
+    return '';
+  }
+
+  String _cascadeValue(FieldDef f, List<Map<String, dynamic>> rows, int i, String sourceKind) {
+    if (i >= rows.length) return '';
+    for (final s in f.sub) {
+      if (s.source == sourceKind) return (rows[i][s.name] ?? '').toString().trim();
+    }
+    return '';
+  }
 
   void _dropRowControllers(String fieldName) {
     final prefix = '$fieldName#';
@@ -198,7 +276,9 @@ class _DynamicFormState extends ConsumerState<DynamicForm> {
     );
   }
 
-  static const _searchableSources = {'client', 'article'};
+  // `articleref` : même lookup que `article`, mais la valeur stockée est la
+  // seule référence (réunion client du 10/09/2026).
+  static const _searchableSources = {'client', 'article', 'articleref'};
 
   Widget _buildField(FieldDef f) {
     // Source 'technicien' keeps its declared control — a dropdown — and only
@@ -217,6 +297,33 @@ class _DynamicFormState extends ConsumerState<DynamicForm> {
         ),
       );
     }
+    // Cascade TAR portée à plat par la phase (réclamation) : les champs amont
+    // sont les champs frères du formulaire.
+    if ((f.source == 'teinte' || f.source == 'base') && f.type != 'reflist') {
+      final upstream = _flatCol(f.source == 'teinte' ? 'articleref' : 'teinte');
+      return _labelled(
+        f,
+        TarCascadeField(
+          kind: f.source!,
+          label: f.label,
+          upstreamLabel: upstream?.label ?? '',
+          refValue: _flatValue('articleref'),
+          teinteValue: _flatValue('teinte'),
+          value: (widget.values[f.name] ?? '').toString(),
+          enabled: !widget.disabled,
+          onChanged: (v) {
+            final next = Map<String, dynamic>.from(widget.values)..[f.name] = v;
+            if (f.source == 'teinte') {
+              for (final other in widget.champs) {
+                if (other.source == 'base') next[other.name] = '';
+              }
+            }
+            widget.onChanged(next);
+            setState(() {});
+          },
+        ),
+      );
+    }
     // A searchable data source wins over the raw type: still a text input, but
     // backed by an ERP suggestion list. Anything the schema does not mark keeps
     // its old widget.
@@ -224,7 +331,7 @@ class _DynamicFormState extends ConsumerState<DynamicForm> {
       return _labelled(
         f,
         ErpAutocompleteField(
-          controller: _ctrl(f.name),
+          controller: _ctrl(f),
           source: f.source!,
           hint: f.label,
           required: f.required,
@@ -237,7 +344,7 @@ class _DynamicFormState extends ConsumerState<DynamicForm> {
         return _labelled(
           f,
           AppTextField(
-            controller: _ctrl(f.name),
+            controller: _ctrl(f),
             hint: f.label,
             maxLines: 4,
             required: f.required,
@@ -247,7 +354,7 @@ class _DynamicFormState extends ConsumerState<DynamicForm> {
         return _labelled(
           f,
           AppTextField(
-            controller: _ctrl(f.name),
+            controller: _ctrl(f),
             hint: f.label,
             keyboardType: TextInputType.number,
             required: f.required,
@@ -257,21 +364,21 @@ class _DynamicFormState extends ConsumerState<DynamicForm> {
         return _labelled(
           f,
           AppDateField(
-            controller: _ctrl(f.name),
+            controller: _ctrl(f),
             hint: f.label,
             required: f.required,
-            onTap: () => pickDate(context, _ctrl(f.name)),
+            onTap: () => pickDate(context, _ctrl(f)),
           ),
         );
       case 'time':
         return _labelled(
           f,
           AppDateField(
-            controller: _ctrl(f.name),
+            controller: _ctrl(f),
             hint: f.label,
             prefixIcon: Icons.schedule_outlined,
             required: f.required,
-            onTap: () => pickTime(context, _ctrl(f.name)),
+            onTap: () => pickTime(context, _ctrl(f)),
           ),
         );
       case 'select':
@@ -289,7 +396,7 @@ class _DynamicFormState extends ConsumerState<DynamicForm> {
         return _labelled(
           f,
           AppTextField(
-            controller: _ctrl(f.name),
+            controller: _ctrl(f),
             hint: f.label,
             required: f.required,
           ),
@@ -514,7 +621,31 @@ class _DynamicFormState extends ConsumerState<DynamicForm> {
                 for (final sf in f.sub)
                   Padding(
                     padding: EdgeInsets.only(bottom: 8.h),
-                    child: _searchableSources.contains(sf.source)
+                    child: sf.source == 'teinte' || sf.source == 'base'
+                        ? TarCascadeField(
+                            kind: sf.source!,
+                            label: sf.label,
+                            upstreamLabel: _cascadeLabel(
+                                f, sf.source == 'teinte' ? 'articleref' : 'teinte'),
+                            refValue: _cascadeValue(f, rows, i, 'articleref'),
+                            teinteValue: _cascadeValue(f, rows, i, 'teinte'),
+                            value: (rows[i][sf.name] ?? '').toString(),
+                            enabled: !widget.disabled,
+                            onChanged: (v) {
+                              final current = _rows(f.name);
+                              if (i >= current.length) return;
+                              current[i][sf.name] = v;
+                              // Changer la teinte invalide la base de la ligne.
+                              if (sf.source == 'teinte') {
+                                for (final other in f.sub) {
+                                  if (other.source == 'base') current[i][other.name] = '';
+                                }
+                              }
+                              _set(f.name, current);
+                              setState(() {});
+                            },
+                          )
+                        : _searchableSources.contains(sf.source)
                         ? ErpAutocompleteField(
                             controller: _rowCtrl(f, i, sf),
                             source: sf.source!,
@@ -721,6 +852,10 @@ class _ErpAutocompleteFieldState extends ConsumerState<ErpAutocompleteField> {
   bool _open = false;
   bool _loading = false;
   bool _searched = false;
+  /// Mode « parcourir » : la liste est ouverte PAR LE BOUTON, sans saisie — le
+  /// commercial qui ne connaît pas ses clients ouvre et choisit (réunion client
+  /// du 10/09/2026). Taper une lettre rebascule en mode recherche.
+  bool _browsing = false;
   /// Vrai quand la dernière recherche a ÉCHOUÉ (réseau, serveur), par opposition
   /// à une recherche qui a abouti sans résultat. Les deux affichaient le même
   /// « Aucun article trouvé » — un commercial hors couverture en concluait que le
@@ -747,6 +882,7 @@ class _ErpAutocompleteFieldState extends ConsumerState<ErpAutocompleteField> {
     final q = widget.controller.text.trim();
     if (q == _lastQuery) return;
     _lastQuery = q;
+    _browsing = false; // taper une lettre rebascule en mode recherche
     final mine = ++_token;
 
     if (q.length < LookupService.minQueryLength) {
@@ -780,16 +916,44 @@ class _ErpAutocompleteFieldState extends ConsumerState<ErpAutocompleteField> {
 
   void _select(ErpRef row) {
     _token++; // cancel anything in flight
-    _lastQuery = row.label.trim();
+    // La source `articleref` STOCKE la référence seule ([ErpRef.code]) ; la
+    // suggestion affichait « REF DES » pour que le produit soit reconnaissable.
+    final stored = widget.source == 'articleref' ? (row.code ?? row.label) : row.label;
+    _lastQuery = stored.trim();
     widget.controller.value = TextEditingValue(
-      text: row.label,
-      selection: TextSelection.collapsed(offset: row.label.length),
+      text: stored,
+      selection: TextSelection.collapsed(offset: stored.length),
     );
     FocusScope.of(context).unfocus();
     setState(() {
       _open = false;
+      _browsing = false;
       _loading = false;
       _results = const [];
+    });
+  }
+
+  /// Ouvre la liste complète sans saisie ; re-taper referme via [_onTyped].
+  Future<void> _toggleBrowse() async {
+    if (!widget.enabled) return;
+    if (_open && _browsing) {
+      setState(() { _open = false; _browsing = false; });
+      return;
+    }
+    final mine = ++_token;
+    setState(() {
+      _browsing = true;
+      _open = true;
+      _loading = true;
+      _results = const [];
+    });
+    final res = await ref.read(lookupServiceProvider).browseBySource(widget.source);
+    if (!mounted || _token != mine) return;
+    setState(() {
+      _results = res.getOrElse(() => const <ErpRef>[]);
+      _enEchec = res.isLeft();
+      _loading = false;
+      _searched = true;
     });
   }
 
@@ -805,8 +969,10 @@ class _ErpAutocompleteFieldState extends ConsumerState<ErpAutocompleteField> {
           canRequestFocus: false,
           onFocusChange: (has) {
             // Collapse when the field loses focus — a list left hanging under an
-            // unfocused field steals taps from the fields below it.
-            if (!has && _open) setState(() => _open = false);
+            // unfocused field steals taps from the fields below it. Le mode
+            // « parcourir » s'ouvre SANS focus : il se ferme par le bouton ou
+            // par un choix, pas par un événement de focus qu'il n'aura jamais.
+            if (!has && _open && !_browsing) setState(() => _open = false);
           },
           child: AppTextField(
             controller: widget.controller,
@@ -815,16 +981,35 @@ class _ErpAutocompleteFieldState extends ConsumerState<ErpAutocompleteField> {
             readOnly: !widget.enabled,
             // Client et produit se saisissent en capitales, comme les données ERP.
             inputFormatters: const [UpperCaseTextFormatter()],
-            suffix: _loading
-                ? Padding(
-                    padding: EdgeInsets.all(12.w),
+            suffix: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_loading)
+                  Padding(
+                    padding: EdgeInsets.only(left: 12.w),
                     child: SizedBox(
                       width: 16.w,
                       height: 16.w,
                       child: const CircularProgressIndicator(strokeWidth: 2),
                     ),
-                  )
-                : null,
+                  ),
+                // Bouton « ouvrir la liste » : parcourir sans taper (réunion
+                // client du 10/09/2026) — le commercial qui ne connaît pas la
+                // référence ou le client ouvre la liste et choisit.
+                IconButton(
+                  tooltip: 'Ouvrir la liste',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: widget.enabled ? _toggleBrowse : null,
+                  icon: Icon(
+                    _open && _browsing
+                        ? Icons.arrow_drop_up_rounded
+                        : Icons.arrow_drop_down_rounded,
+                    size: 26.sp,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         if (_open) _panel(),
@@ -893,5 +1078,286 @@ class _ErpAutocompleteFieldState extends ConsumerState<ErpAutocompleteField> {
               },
             ),
         );
+  }
+}
+
+// ─── Cascade TAR des lignes d'échantillon (source 'teinte' / 'base') ─────────
+//
+// Réunion client du 10/09/2026 : teinte et base ne se tapent plus, elles se
+// CHOISISSENT dans dbo.TAR. La référence de la MÊME ligne remplit la liste des
+// teintes (SREF1) ; le couple référence + teinte celle des bases (SREF2). Tant
+// que l'amont n'est pas choisi, le champ est inerte et dit pourquoi.
+//
+// La valeur vide d'une base est un CHOIX (« sans base ») : l'API la renvoie
+// dans la liste quand elle existe et elle s'affiche comme une option à part
+// entière. La valeur stockée reste une chaîne simple — les demandes saisies
+// avant la cascade (teinte tapée librement) se rouvrent sans cas spécial.
+//
+// Le choix se fait dans une feuille de bas d'écran — l'idiome mobile — avec un
+// filtre local quand la liste est longue (194 teintes sur certaines
+// références). Les options sont rechargées à CHAQUE ouverture : l'API cache
+// 5 minutes, l'appel est bon marché, et une liste d'une autre référence ne
+// peut pas rester affichée.
+class TarCascadeField extends ConsumerStatefulWidget {
+  final String kind; // 'teinte' | 'base'
+  final String label;
+
+  /// Libellé du champ à renseigner AVANT celui-ci — « Référence » et « Teinte »
+  /// sur un échantillon, « Produit réclamé » et « Sous-référence 1 » sur une
+  /// réclamation. Un libellé figé mentirait sur l'un des deux.
+  final String upstreamLabel;
+  final String refValue;
+  final String teinteValue;
+  final String value;
+  final bool enabled;
+  final ValueChanged<String> onChanged;
+
+  const TarCascadeField({
+    super.key,
+    required this.kind,
+    required this.label,
+    required this.upstreamLabel,
+    required this.refValue,
+    required this.teinteValue,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  @override
+  ConsumerState<TarCascadeField> createState() => _TarCascadeFieldState();
+}
+
+class _TarCascadeFieldState extends ConsumerState<TarCascadeField> {
+  bool _loading = false;
+
+  bool get _ready => widget.kind == 'teinte'
+      ? widget.refValue.isNotEmpty
+      : widget.refValue.isNotEmpty && widget.teinteValue.isNotEmpty;
+
+  String get _placeholder =>
+      !_ready ? "Choisir d'abord « ${widget.upstreamLabel} »" : '— Choisir —';
+
+  Future<void> _openPicker() async {
+    if (!widget.enabled || !_ready || _loading) return;
+    setState(() => _loading = true);
+    final lookup = ref.read(lookupServiceProvider);
+    final res = widget.kind == 'teinte'
+        ? await lookup.fetchTeintes(widget.refValue)
+        : await lookup.fetchBases(widget.refValue, widget.teinteValue);
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    final options = res.getOrElse(() => const <String>[]);
+    if (res.isLeft()) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: const Text('Chargement impossible — vérifiez votre connexion.'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      return;
+    }
+    if (options.isEmpty) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text('Aucune valeur pour « ${widget.upstreamLabel} » choisi.'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      return;
+    }
+
+    final picked = await showModalBottomSheet<(String,)>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder: (sheetCtx) => _TarOptionsSheet(
+        title: widget.label,
+        options: options,
+        current: widget.value,
+      ),
+    );
+    // null = feuille refermée sans choix. La chaîne vide est un VRAI choix
+    // (« sans sous-référence ») : l'enregistrement à un champ les distingue
+    // sans recourir à une valeur sentinelle dans le texte lui-même.
+    if (picked == null) return;
+    widget.onChanged(picked.$1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final display = widget.value.isNotEmpty ? widget.value : _placeholder;
+    return InkWell(
+      borderRadius: BorderRadius.circular(10.r),
+      onTap: widget.enabled && _ready ? _openPicker : null,
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: widget.label,
+          isDense: true,
+          enabled: widget.enabled && _ready,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.r)),
+          suffixIcon: _loading
+              ? Padding(
+                  padding: EdgeInsets.all(12.w),
+                  child: SizedBox(
+                    width: 16.w,
+                    height: 16.w,
+                    child: const CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : Icon(Icons.arrow_drop_down_rounded,
+                  size: 26.sp,
+                  color: widget.enabled && _ready
+                      ? AppColors.textMuted
+                      : AppColors.border),
+        ),
+        child: Text(
+          display,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 14.sp,
+            color: widget.value.isNotEmpty
+                ? AppColors.textPrimary
+                : AppColors.textMuted,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Contenu de la feuille de choix : filtre local (listes longues) + options.
+class _TarOptionsSheet extends StatefulWidget {
+  final String title;
+  final List<String> options;
+  final String current;
+
+  const _TarOptionsSheet({
+    required this.title,
+    required this.options,
+    required this.current,
+  });
+
+  @override
+  State<_TarOptionsSheet> createState() => _TarOptionsSheetState();
+}
+
+class _TarOptionsSheetState extends State<_TarOptionsSheet> {
+  String _filter = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _filter.trim().toLowerCase();
+    final shown = q.isEmpty
+        ? widget.options
+        : widget.options.where((o) => o.toLowerCase().contains(q)).toList();
+
+    return SafeArea(
+      child: Padding(
+        // Le clavier du filtre ne doit pas recouvrir la liste.
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.7,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 8.h),
+                child: Text(
+                  widget.title,
+                  style: TextStyle(
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              if (widget.options.length > 8)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 8.h),
+                  child: TextField(
+                    autofocus: false,
+                    onChanged: (v) => setState(() => _filter = v),
+                    decoration: InputDecoration(
+                      hintText: 'Filtrer…',
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                    ),
+                  ),
+                ),
+              Flexible(
+                child: shown.isEmpty
+                    ? Padding(
+                        padding: EdgeInsets.all(20.w),
+                        child: Text(
+                          'Aucune option ne correspond au filtre',
+                          style: TextStyle(fontSize: 13.sp, color: AppColors.textMuted),
+                        ),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: shown.length,
+                        separatorBuilder: (context, index) =>
+                            Divider(height: 1, color: AppColors.border),
+                        itemBuilder: (_, i) {
+                          final o = shown[i];
+                          final selected =
+                              o == widget.current && widget.current.isNotEmpty;
+                          return InkWell(
+                            onTap: () => Navigator.of(context).pop((o,)),
+                            child: Container(
+                              constraints: BoxConstraints(minHeight: 48.h),
+                              alignment: Alignment.centerLeft,
+                              padding: EdgeInsets.symmetric(horizontal: 20.w),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: o.isEmpty
+                                        ? Text(
+                                            '(vide)',
+                                            style: TextStyle(
+                                              fontSize: 14.sp,
+                                              fontStyle: FontStyle.italic,
+                                              color: AppColors.textMuted,
+                                            ),
+                                          )
+                                        : Text(
+                                            o,
+                                            style: TextStyle(
+                                              fontSize: 14.sp,
+                                              fontWeight: FontWeight.w600,
+                                              color: selected
+                                                  ? AppColors.primary
+                                                  : AppColors.textPrimary,
+                                            ),
+                                          ),
+                                  ),
+                                  if (selected)
+                                    Icon(Icons.check_rounded,
+                                        size: 18.sp, color: AppColors.primary),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              SizedBox(height: 8.h),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

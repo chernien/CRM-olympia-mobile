@@ -75,8 +75,9 @@ class _DashboardViewState extends ConsumerState<DashboardView>
   /// the SERVER (ObjectifCelebrations table) — once per objective per user,
   /// shared across devices, logins and reinstalls.
   void _maybeCelebrate(List<ObjectifProgress> objectifs) {
-    final freshlyDone =
-        objectifs.where((o) => o.pct >= 100 && !o.celebrated).toList();
+    final freshlyDone = objectifs
+        .where((o) => o.repartie && o.pct >= 100 && !o.celebrated)
+        .toList();
     if (freshlyDone.isEmpty) return;
     // Mark server-side immediately (also updates local state → no re-fire).
     final notifier = ref.read(dashboardProvider.notifier);
@@ -275,6 +276,10 @@ class _DashboardViewState extends ConsumerState<DashboardView>
   }
 
   Widget _buildObjectifCard(ObjectifProgress o) {
+    // Sans part attribuee, ce commercial n'a pas de cible : afficher « 0 / 0 »
+    // et 0 % laisserait croire a un retard, alors que rien ne lui a encore ete
+    // demande (reunion client du 11/09/2026).
+    if (!o.repartie) return _buildObjectifEnAttente(o);
     final pct = o.pct;
     final done = pct >= 100;
     final barColor = done ? AppColors.success : AppColors.primary;
@@ -362,6 +367,58 @@ class _DashboardViewState extends ConsumerState<DashboardView>
     );
   }
 
+  /// Objectif dont la part de ce commercial n'a pas encore ete fixee par
+  /// l'administrateur. On nomme l'objectif et on explique l'attente, sans
+  /// jamais afficher la cible globale de l'equipe.
+  Widget _buildObjectifEnAttente(ObjectifProgress o) {
+    final isCa = o.type == 'chiffre_affaire';
+    final periodeLabel = o.isMensuel ? 'mensuel' : 'trimestriel';
+    final label = isCa
+        ? 'Objectif CA $periodeLabel'
+        : (o.titre.isNotEmpty
+            ? '${o.titre} ($periodeLabel)'
+            : 'Objectif taches $periodeLabel');
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 12.h),
+      padding: EdgeInsets.all(16.r),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.hourglass_empty_rounded,
+              size: 20.sp, color: AppColors.warning),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary)),
+                SizedBox(height: 4.h),
+                Text(
+                  "Votre part n'a pas encore ete definie par l'administrateur.",
+                  style: TextStyle(
+                      fontSize: 11.sp,
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _doneBadge() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
@@ -396,6 +453,8 @@ class _DashboardViewState extends ConsumerState<DashboardView>
       'directioncommerciale' => 'Direction commerciale',
       'responsabletechnique' => 'Responsable technique',
       'servicerecouvrement' => 'Service recouvrement',
+      'prod' => 'Prod',
+      'adv' => 'ADV',
       '' => '',
       _ => user!.role,
     };
